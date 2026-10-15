@@ -12,7 +12,7 @@ export interface DiffApplicationResult {
   ignoredOperations: Array<{ index: number; reason: string }>;
 }
 
-function slugifyId(text: string): string {
+export function slugifyId(text: string): string {
   return (
     text
       .toLowerCase()
@@ -22,7 +22,7 @@ function slugifyId(text: string): string {
 }
 
 /**
- * Applies a structured WhiteboardDiffPayload or natural-language edit instruction
+ * Applies a structured WhiteboardDiffPayload, direct HTML page edits, or natural-language instruction
  * to an existing LivingArchitectureSpec.
  */
 export function applyWhiteboardDiff(
@@ -30,6 +30,7 @@ export function applyWhiteboardDiff(
   diff: WhiteboardDiffPayload
 ): DiffApplicationResult {
   const spec: LivingArchitectureSpec = JSON.parse(JSON.stringify(baseSpec));
+  if (!Array.isArray(spec.annotations)) spec.annotations = [];
   const ignoredOperations: Array<{ index: number; reason: string }> = [];
   let appliedCount = 0;
 
@@ -78,7 +79,6 @@ export function applyWhiteboardDiff(
         },
       });
 
-      // Add to active scene if specified or add to last scene
       const targetScene =
         spec.scenes.find((s) => s.id === diff.sceneId) || spec.scenes[spec.scenes.length - 1];
       if (targetScene && !targetScene.activeNodes.includes(id)) {
@@ -168,6 +168,67 @@ export function applyWhiteboardDiff(
         return;
       }
       node.summary = `${node.summary} — [Note: ${op.note}]`;
+      if (!Array.isArray(node.annotations)) node.annotations = [];
+      node.annotations.push(op.note);
+      // If annotation describes adding/connecting a component, synthesize it into the graph as well
+      const derivedOps = parseNaturalLanguageEdit(spec, op.note, node.id);
+      if (derivedOps.length > 0) {
+        const subResult = applyWhiteboardDiff(spec, {
+          timestamp: diff.timestamp,
+          sceneId: diff.sceneId,
+          operations: derivedOps,
+        });
+        spec.nodes = subResult.spec.nodes;
+        spec.edges = subResult.spec.edges;
+        spec.scenes = subResult.spec.scenes;
+      }
+      appliedCount++;
+    } else if (op.action === 'UPDATE_NODE') {
+      const node = spec.nodes.find((n) => n.id === op.nodeId);
+      if (!node) {
+        ignoredOperations.push({ index, reason: `Node "${op.nodeId}" not found for UPDATE_NODE` });
+        return;
+      }
+      if (typeof op.label === 'string' && op.label.trim()) node.label = op.label.trim();
+      if (typeof op.summary === 'string' && op.summary.trim()) node.summary = op.summary.trim();
+      if (op.kind) node.kind = op.kind;
+      if (typeof op.protocol === 'string' && op.protocol.trim()) {
+        node.metadata = { ...(node.metadata || {}), protocol: op.protocol.trim() };
+      }
+      appliedCount++;
+    } else if (op.action === 'MOVE_NODE') {
+      const node = spec.nodes.find((n) => n.id === op.nodeId);
+      if (!node) {
+        ignoredOperations.push({ index, reason: `Node "${op.nodeId}" not found for MOVE_NODE` });
+        return;
+      }
+      node.positionOverride = { x: Math.round(op.x), y: Math.round(op.y) };
+      if (op.planeId && planeIds.has(op.planeId)) {
+        node.planeId = op.planeId;
+      }
+      appliedCount++;
+    } else if (op.action === 'ADD_PIN_NOTE') {
+      const pinId = op.id || `pin-${slugifyId(op.text).slice(0, 16)}-${spec.annotations!.length + 1}`;
+      spec.annotations!.push({
+        id: pinId,
+        x: Math.round(op.x),
+        y: Math.round(op.y),
+        planeId: op.planeId || defaultPlaneId,
+        nearNodeId: op.nearNodeId,
+        text: op.text,
+      });
+      // Also parse the pin note for actionable architectural instructions (e.g. "Add OAuth2 gateway here")
+      const derivedOps = parseNaturalLanguageEdit(spec, op.text, op.nearNodeId);
+      if (derivedOps.length > 0) {
+        const subRes = applyWhiteboardDiff(spec, {
+          timestamp: diff.timestamp,
+          sceneId: diff.sceneId,
+          operations: derivedOps,
+        });
+        spec.nodes = subRes.spec.nodes;
+        spec.edges = subRes.spec.edges;
+        spec.scenes = subRes.spec.scenes;
+      }
       appliedCount++;
     }
   });
@@ -175,9 +236,9 @@ export function applyWhiteboardDiff(
   return { spec, appliedCount, ignoredOperations };
 }
 
-function inferNodeKind(label: string): NodeKind {
+export function inferNodeKind(label: string): NodeKind {
   const lower = label.toLowerCase();
-  if (lower.includes('queue') || lower.includes('kafka') || lower.includes('sqs') || lower.includes('bus'))
+  if (lower.includes('queue') || lower.includes('kafka') || lower.includes('sqs') || lower.includes('bus') || lower.includes('dlq'))
     return 'queue';
   if (
     lower.includes('db') ||
@@ -187,21 +248,23 @@ function inferNodeKind(label: string): NodeKind {
     lower.includes('redis') ||
     lower.includes('bucket') ||
     lower.includes('store') ||
-    lower.includes('ledger')
+    lower.includes('ledger') ||
+    lower.includes('vault') ||
+    lower.includes('cache')
   )
     return 'database';
-  if (lower.includes('pdf') || lower.includes('doc') || lower.includes('schema') || lower.includes('brief'))
+  if (lower.includes('pdf') || lower.includes('doc') || lower.includes('schema') || lower.includes('brief') || lower.includes('report'))
     return 'document';
-  if (lower.includes('agent') || lower.includes('llm') || lower.includes('solver') || lower.includes('ai'))
+  if (lower.includes('agent') || lower.includes('llm') || lower.includes('solver') || lower.includes('ai') || lower.includes('model'))
     return 'agent';
-  if (lower.includes('user') || lower.includes('exec') || lower.includes('client') || lower.includes('actor'))
+  if (lower.includes('user') || lower.includes('exec') || lower.includes('client') || lower.includes('actor') || lower.includes('portal') || lower.includes('pos'))
     return 'actor';
-  if (lower.includes('stripe') || lower.includes('erp') || lower.includes('platform') || lower.includes('cdn'))
+  if (lower.includes('stripe') || lower.includes('erp') || lower.includes('platform') || lower.includes('cdn') || lower.includes('gateway') || lower.includes('iso'))
     return 'platform';
   return 'service';
 }
 
-function inferDefaultProtocol(kind: NodeKind): string {
+export function inferDefaultProtocol(kind: NodeKind): string {
   switch (kind) {
     case 'queue':
       return 'EVENT';
@@ -219,17 +282,16 @@ function inferDefaultProtocol(kind: NodeKind): string {
 }
 
 /**
- * Lightweight natural-language parser for live ideation commands such as:
- * "Add an event queue between gateway and worker, and link compliance-pdf to audit-bucket"
+ * Lightweight natural-language parser for live ideation commands and in-page annotations
  */
 export function parseNaturalLanguageEdit(
   spec: LivingArchitectureSpec,
-  instruction: string
+  instruction: string,
+  anchorNodeId?: string
 ): WhiteboardDiffPayload['operations'] {
   const ops: WhiteboardDiffPayload['operations'] = [];
   const lower = instruction.toLowerCase();
 
-  // Pattern 1: "add [a/an] <Label> between <NodeA> and <NodeB>"
   const betweenMatch = instruction.match(
     /add\s+(?:an?\s+)?([a-zA-Z0-9\s\-_]+?)\s+between\s+([a-zA-Z0-9\s\-_]+?)\s+and\s+([a-zA-Z0-9\s\-_]+?)(?:[,.]|$|\s+and\s+)/i
   );
@@ -283,7 +345,6 @@ export function parseNaturalLanguageEdit(
     }
   }
 
-  // Pattern 2: "link/connect <NodeX> to <NodeY>"
   const linkMatch = instruction.match(
     /(?:link|connect|route)\s+(?:the\s+)?([a-zA-Z0-9\s\-_]+?)\s+to\s+(?:the\s+)?([a-zA-Z0-9\s\-_]+?)(?:[,.]|$)/i
   );
@@ -324,9 +385,21 @@ export function parseNaturalLanguageEdit(
     });
   }
 
+  // Remove node pattern: "remove/delete <NodeLabel>"
+  const removeMatch = instruction.match(/^(?:remove|delete|drop)\s+(?:the\s+|node\s+)?([a-zA-Z0-9\s\-_]+?)$/i);
+  if (ops.length === 0 && removeMatch) {
+    const target = findNodeByFuzzy(removeMatch[1]);
+    if (target) {
+      ops.push({ action: 'REMOVE_NODE', nodeId: target.id });
+    }
+  }
+
   // Fallback if simple "add <NodeLabel>" without between/link
   if (ops.length === 0 && lower.startsWith('add ')) {
-    const raw = instruction.replace(/^add\s+(?:an?\s+)?/i, '').trim();
+    const raw = instruction
+      .replace(/^add\s+(?:an?\s+)?/i, '')
+      .replace(/\s+here$/i, '')
+      .trim();
     if (raw) {
       const id = `node-${slugifyId(raw)}`;
       const kind = inferNodeKind(raw);
@@ -345,9 +418,10 @@ export function parseNaturalLanguageEdit(
         planeId: planeId || 'plane-orchestration',
       });
 
-      // Connect from the last active node in the first scene if available
-      const anchor = spec.nodes[spec.nodes.length - 1];
-      if (anchor) {
+      const anchor =
+        (anchorNodeId && spec.nodes.find((n) => n.id === anchorNodeId)) ||
+        spec.nodes[spec.nodes.length - 1];
+      if (anchor && anchor.id !== id) {
         ops.push({
           action: 'ADD_EDGE',
           from: anchor.id,

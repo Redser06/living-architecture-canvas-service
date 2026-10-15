@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1120 680" width="1120" height="680" style="background:#F8F7F4">
+    <rect x="28" y="56" width="1064" height="158" rx="10" fill="#FFFFFF" fill-opacity="0.65" stroke="#C8C4B8" stroke-dasharray="6 4" />
+         <text x="44" y="78" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#686763">LAYER 1: ACCESS POINTS & CLIENT SURFACES (ELEV +140)</text>
+<rect x="28" y="238" width="1064" height="158" rx="10" fill="#FFFFFF" fill-opacity="0.65" stroke="#C8C4B8" stroke-dasharray="6 4" />
+         <text x="44" y="260" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#686763">LAYER 2: APIS, SERVICES & AGENT ORCHESTRATION (ELEV +70)</text>
+<rect x="28" y="420" width="1064" height="158" rx="10" fill="#FFFFFF" fill-opacity="0.65" stroke="#C8C4B8" stroke-dasharray="6 4" />
+         <text x="44" y="442" font-family="JetBrains Mono, monospace" font-size="11" font-weight="600" fill="#686763">LAYER 3: DATA STORES, QUEUES & EXTERNAL PLATFORMS (ELEV +0)</text>
+    <path d="M 300 135 C 354.08 135, 349.92 317, 404 317" fill="none" stroke="#1D4ED8" stroke-width="2" />
+              <text x="352" y="216" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#141413">[REST] Ingress Request</text>
+<path d="M 632 317 C 686.08 317, 681.92 499, 736 499" fill="none" stroke="#1D4ED8" stroke-width="2" />
+              <text x="684" y="398" text-anchor="middle" font-family="JetBrains Mono, monospace" font-size="10" fill="#141413">[SQL] Persist State</text>
+    <g transform="translate(72, 94)">
+        <rect width="228" height="82" rx="8" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="1.5" />
+        <text x="14" y="26" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#686763">HTTPS</text>
+        <text x="14" y="54" font-family="Inter, sans-serif" font-size="13.5" font-weight="600" fill="#141413">Client Access Point</text>
+      </g>
+<g transform="translate(404, 276)">
+        <rect width="228" height="82" rx="8" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="1.5" />
+        <text x="14" y="26" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#686763">REST/GRPC</text>
+        <text x="14" y="54" font-family="Inter, sans-serif" font-size="13.5" font-weight="600" fill="#141413">Core Orchestrator API</text>
+      </g>
+<g transform="translate(736, 458)">
+        <rect width="228" height="82" rx="8" fill="#FFFFFF" stroke="#1D4ED8" stroke-width="1.5" />
+        <text x="14" y="26" font-family="JetBrains Mono, monospace" font-size="10" font-weight="600" fill="#686763">SQL</text>
+        <text x="14" y="54" font-family="Inter, sans-serif" font-size="13.5" font-weight="600" fill="#141413">Primary State Store</text>
+      </g>
+  </svg>

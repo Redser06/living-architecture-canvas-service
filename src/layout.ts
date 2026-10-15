@@ -145,8 +145,10 @@ export function computeDeterministicLayout(spec: LivingArchitectureSpec): Comput
       const startY = currentPlaneTop + (bandHeight - totalColHeight) / 2;
 
       colNodes.forEach((node, subIdx) => {
-        const x = CANVAS_PAD_X + col * (NODE_WIDTH + COL_GAP);
-        const y = startY + subIdx * (NODE_HEIGHT + ROW_GAP);
+        const defaultX = CANVAS_PAD_X + col * (NODE_WIDTH + COL_GAP);
+        const defaultY = startY + subIdx * (NODE_HEIGHT + ROW_GAP);
+        const x = typeof node.positionOverride?.x === 'number' ? Math.round(node.positionOverride.x) : defaultX;
+        const y = typeof node.positionOverride?.y === 'number' ? Math.round(node.positionOverride.y) : defaultY;
         computedNodes[node.id] = {
           id: node.id,
           x,

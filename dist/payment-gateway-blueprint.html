@@ -1,0 +1,1216 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Omnichannel Payment & Real-Time Risk Mesh — Living Architecture Canvas</title>
+  <style>:root {
+  --bg-canvas: #F8F7F4;
+  --grid-dot: #E6E4DD;
+  --surface-card: #FFFFFF;
+  --border-subtle: #E2E0D8;
+  --border-strong: #C8C4B8;
+  --ink-primary: #141413;
+  --ink-secondary: #686763;
+  --ink-muted: #9E9D99;
+  --accent-flow: #1D4ED8;
+  --accent-pulse: #EA580C;
+  --accent-storage: #15803D;
+  --accent-actor: #6D28D9;
+  --accent-error: #B91C1C;
+  --shadow-card: 0 2px 6px rgba(20, 20, 19, 0.04);
+  --shadow-elevated: 0 12px 28px rgba(20, 20, 19, 0.08);
+  --font-sans: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(var(--grid-dot) 1.25px, transparent 1.25px);
+  background-size: 20px 20px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 58px;
+  background: rgba(248, 247, 244, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; z-index: 40;
+}
+.brand-block { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; }
+.brand-title { font-size: 14.5px; font-weight: 650; letter-spacing: -0.02em; }
+.brand-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-secondary); text-transform: uppercase; }
+.toolbar-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
+
+.btn {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 11.5px; font-weight: 550;
+  padding: 5px 10px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s ease;
+  box-shadow: var(--shadow-card);
+  white-space: nowrap; flex-shrink: 0;
+}
+.btn:hover { border-color: var(--ink-secondary); }
+.btn.active { background: var(--ink-primary); color: #FFF; border-color: var(--ink-primary); }
+.btn-accent { background: var(--accent-flow); color: #FFF; border-color: var(--accent-flow); }
+
+#viewport {
+  position: fixed; inset: 58px 0 76px 0;
+  overflow: hidden; cursor: grab;
+  perspective: 1400px;
+}
+#viewport.whiteboard-active { cursor: crosshair; }
+
+#world {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 50% 50%;
+  transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.21, 1);
+  transform-style: preserve-3d;
+}
+#world.layered-25d {
+  transform: translate3d(var(--cam-x, 40px), var(--cam-y, 20px), 0) scale(var(--cam-scale, 0.85)) rotateX(24deg) rotateZ(-8deg);
+}
+
+#webgl-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: none; cursor: grab;
+}
+
+#direct-edit-hint {
+  position: absolute; bottom: 12px; left: 20px;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-secondary);
+  background: rgba(255, 255, 255, 0.88); border: 1px solid var(--border-subtle);
+  padding: 4px 10px; border-radius: 6px; pointer-events: none; z-index: 30;
+}
+
+.plane-band {
+  position: absolute; left: 28px; right: 28px;
+  border: 1px dashed var(--border-strong);
+  background: rgba(255, 255, 255, 0.42);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: transform 0.6s ease, box-shadow 0.6s ease;
+}
+#world.layered-25d .plane-band {
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 36px rgba(20, 20, 19, 0.06);
+}
+.plane-label {
+  position: absolute; top: 10px; left: 14px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+#edges-svg, #whiteboard-svg {
+  position: absolute; top: 0; left: 0;
+  overflow: visible; pointer-events: none;
+}
+#edges-svg path.edge-hit {
+  pointer-events: stroke; stroke: transparent; stroke-width: 14px; fill: none; cursor: pointer;
+}
+#whiteboard-svg.active { pointer-events: all; }
+
+.edge-path {
+  fill: none; stroke: var(--border-strong); stroke-width: 1.75px;
+  transition: opacity 0.35s ease, stroke 0.35s ease;
+}
+.edge-path.dimmed { opacity: 0.22; }
+.edge-path.active-flow { stroke: var(--accent-flow); stroke-width: 2.2px; stroke-dasharray: 7 5; animation: dashFlow 0.9s linear infinite; }
+.edge-path.active-pulse { stroke: var(--accent-pulse); stroke-width: 2.2px; }
+.edge-path.active-fork, .edge-path.active-join { stroke: var(--accent-storage); stroke-width: 2.2px; }
+.edge-path.active-error { stroke: var(--accent-error); stroke-width: 2.2px; stroke-dasharray: 5 4; }
+
+@keyframes dashFlow { to { stroke-dashoffset: -24; } }
+
+.node-card {
+  position: absolute;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: opacity 0.35s ease, transform 0.45s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.node-card:hover { border-color: var(--ink-secondary); box-shadow: var(--shadow-elevated); }
+.node-card.dimmed { opacity: 0.28; }
+.node-card.active { border-color: var(--accent-flow); box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12), var(--shadow-card); }
+.node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.node-kind-icon { font-size: 13px; }
+.node-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  background: #F2F0E8; color: var(--ink-secondary);
+}
+.node-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-primary); margin-top: 4px; outline: none; }
+.node-title[contenteditable="true"] { background: #FEF3C7; padding: 1px 4px; border-radius: 4px; }
+
+.pin-badge {
+  position: absolute; transform: translate(-50%, -100%);
+  background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E;
+  font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+  box-shadow: var(--shadow-card); display: flex; align-items: center; gap: 4px;
+  z-index: 25; white-space: nowrap;
+}
+
+#hud-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 76px;
+  background: var(--surface-card);
+  border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; z-index: 40;
+}
+.narrative-box { max-width: 660px; }
+.scene-kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; color: var(--accent-flow); font-weight: 600; }
+.scene-narrative { font-size: 13.5px; color: var(--ink-primary); margin-top: 2px; line-height: 1.38; }
+
+#inspector {
+  position: fixed; top: 58px; right: 0; bottom: 76px; width: 380px;
+  background: var(--surface-card);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-elevated);
+  padding: 20px; overflow-y: auto;
+  transform: translateX(100%); transition: transform 0.25s ease; z-index: 45;
+}
+#inspector.open { transform: translateX(0); }
+.inspector-input {
+  width: 100%; margin-top: 6px; padding: 8px 10px;
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  font-family: var(--font-sans); font-size: 12px;
+}
+.inspector-pre {
+  margin-top: 10px; padding: 12px; border-radius: 6px;
+  background: #F8F7F4; border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono); font-size: 11.5px; white-space: pre-wrap; overflow-x: auto;
+}
+</style>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand-block">
+      <span class="brand-title">Omnichannel Payment & Real-Time Risk Mesh</span>
+      <span class="brand-meta">v2.4 · EDITORIAL ARCHITECTURAL · DIRECT-EDIT ENABLED</span>
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-view-2d" class="btn">2D SVG</button>
+      <button id="btn-toggle-25d" class="btn">2.5D Isometric Stack</button>
+      <button id="btn-view-3d" class="btn">3D WebGL / Three.js</button>
+      <button id="btn-add-node" class="btn">+ Add Node</button>
+      <button id="btn-toggle-wb" class="btn">✎ Connect / Draw</button>
+      <button id="btn-pin-note" class="btn">📌 Annotate</button>
+      <button id="btn-export-diff" class="btn">Copy Diff (0)</button>
+      <button id="btn-refactor-agent" class="btn btn-accent">✨ Refactor HTML</button>
+    </div>
+  </header>
+
+  <main id="viewport">
+    <div id="world">
+      <div id="planes-layer"></div>
+      <svg id="edges-svg"></svg>
+      <div id="nodes-layer"></div>
+      <div id="pins-layer"></div>
+      <svg id="whiteboard-svg"></svg>
+    </div>
+    <canvas id="webgl-canvas"></canvas>
+    <div id="direct-edit-hint">Double-click node text to edit · Drag node to move · + Add Node · ✎ Connect · 📌 Annotate → ✨ Refactor HTML</div>
+  </main>
+
+  <aside id="inspector"></aside>
+  <footer id="hud-bar"></footer>
+
+  <script id="architecture-spec" type="application/json">{
+  "meta": {
+    "title": "Omnichannel Payment & Real-Time Risk Mesh",
+    "subtitle": "POS/E-Com Access Points, Zero-Trust mTLS Gateway, AI Fraud Scoring & Multi-Rail Settlement",
+    "version": "2.4",
+    "defaultView": "2d-flow"
+  },
+  "planes": [
+    {
+      "id": "plane-access",
+      "label": "Layer 1: Merchant Access Points & SDKs",
+      "elevation": 150
+    },
+    {
+      "id": "plane-core",
+      "label": "Layer 2: API Gateway, AI Risk & Routing Mesh",
+      "elevation": 75
+    },
+    {
+      "id": "plane-rails",
+      "label": "Layer 3: Card Rails, Token Vault & Ledger",
+      "elevation": 0
+    }
+  ],
+  "nodes": [
+    {
+      "id": "pos-terminal",
+      "label": "SmartPOS & Web Checkout SDK",
+      "kind": "actor",
+      "planeId": "plane-access",
+      "summary": "Contactless terminal & hosted checkout WebSDK with P2PE encryption.",
+      "metadata": {
+        "protocol": "mTLS/REST",
+        "accessPoint": "wss://pos-edge.gateway.internal/v2",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "merchantId": "MERCH-99412",
+            "amountMinor": 14500,
+            "currency": "EUR",
+            "channel": "CP_EMV"
+          }
+        }
+      }
+    },
+    {
+      "id": "merchant-portal",
+      "label": "Reconciliation Portal",
+      "kind": "document",
+      "planeId": "plane-access",
+      "summary": "Real-time reconciliation dashboard & settlement batch manifest.",
+      "metadata": {
+        "protocol": "GRAPHQL",
+        "artifactPreview": {
+          "type": "markdown",
+          "content": "# Settlement Manifest\nAuth Rate: 99.42% | Fraud Blocked: €18.4K | T+0 Instant Payout Ready"
+        }
+      }
+    },
+    {
+      "id": "edge-gateway",
+      "label": "Edge API Gateway",
+      "kind": "platform",
+      "planeId": "plane-core",
+      "summary": "Zero-trust mTLS ingress, rate limiting, and idempotency key router.",
+      "metadata": {
+        "protocol": "REST/gRPC",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "slaP99Ms": 14,
+            "idempotencyTtlSec": 86400,
+            "region": "eu-west-1"
+          }
+        }
+      }
+    },
+    {
+      "id": "risk-agent",
+      "label": "AI Fraud & Auth Scorer",
+      "kind": "agent",
+      "planeId": "plane-core",
+      "summary": "Sub-25ms feature scorer evaluating velocity, device fingerprint & MCC.",
+      "metadata": {
+        "protocol": "gRPC",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "riskScore": 0.018,
+            "decision": "APPROVE",
+            "modelVersion": "fraud-v4.2"
+          }
+        }
+      }
+    },
+    {
+      "id": "event-bus",
+      "label": "Kafka Acquiring Bus",
+      "kind": "queue",
+      "planeId": "plane-core",
+      "summary": "Partitioned event stream fanning out auth events to clearing and merchant webhooks.",
+      "metadata": {
+        "protocol": "EVENT",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "topic": "acquiring.auth.v2",
+            "partitions": 64,
+            "lagMs": 4
+          }
+        }
+      }
+    },
+    {
+      "id": "pci-vault",
+      "label": "PCI-DSS Token Vault",
+      "kind": "database",
+      "planeId": "plane-rails",
+      "summary": "HSM-backed PAN tokenization and network token provisioning.",
+      "metadata": {
+        "protocol": "SQL",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "token": "tok_8f92a1c",
+            "networkToken": true,
+            "pciScope": "CDE-Isolated"
+          }
+        }
+      }
+    },
+    {
+      "id": "settlement-ledger",
+      "label": "ISO-8583 & Settlement Ledger",
+      "kind": "platform",
+      "planeId": "plane-rails",
+      "summary": "Dual-message clearing adapter and immutable double-entry ledger.",
+      "metadata": {
+        "protocol": "Webhook",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "isoMti": "0100->0110",
+            "clearingWindow": "T+0",
+            "ledgerBalanced": true
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-pos-gw",
+      "source": "pos-terminal",
+      "target": "edge-gateway",
+      "label": "mTLS Auth Req",
+      "protocol": "REST",
+      "motionPrimitive": "flow"
+    },
+    {
+      "id": "e-gw-vault",
+      "source": "edge-gateway",
+      "target": "pci-vault",
+      "label": "Detokenize PAN",
+      "protocol": "SQL",
+      "motionPrimitive": "pulse"
+    },
+    {
+      "id": "e-gw-risk",
+      "source": "edge-gateway",
+      "target": "risk-agent",
+      "label": "Score Context",
+      "protocol": "gRPC",
+      "motionPrimitive": "flow"
+    },
+    {
+      "id": "e-risk-bus",
+      "source": "risk-agent",
+      "target": "event-bus",
+      "label": "Approved Event",
+      "protocol": "Event",
+      "motionPrimitive": "fork"
+    },
+    {
+      "id": "e-bus-ledger",
+      "source": "event-bus",
+      "target": "settlement-ledger",
+      "label": "ISO-8583 Clear",
+      "protocol": "Webhook",
+      "motionPrimitive": "flow"
+    },
+    {
+      "id": "e-bus-portal",
+      "source": "event-bus",
+      "target": "merchant-portal",
+      "label": "Live Webhook",
+      "protocol": "Document-Link",
+      "motionPrimitive": "join"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-ingress",
+      "title": "1. Zero-Trust Access Point & PCI Vault Tokenization",
+      "narrative": "A SmartPOS terminal initiates an mTLS transaction; the Edge Gateway swaps the raw PAN for a network token inside the isolated PCI-DSS Vault.",
+      "activeNodes": [
+        "pos-terminal",
+        "edge-gateway",
+        "pci-vault"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-pos-gw",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-gw-vault",
+          "stepOrder": 2
+        }
+      ],
+      "camera": {
+        "viewMode": "2d-flow"
+      }
+    },
+    {
+      "id": "scene-scoring",
+      "title": "2. Sub-25ms AI Fraud Scoring & Event Fan-Out",
+      "narrative": "The AI Fraud Scorer evaluates cross-merchant velocity over gRPC and publishes the approved decision onto the partitioned Kafka Bus.",
+      "activeNodes": [
+        "edge-gateway",
+        "risk-agent",
+        "event-bus"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-gw-risk",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-risk-bus",
+          "stepOrder": 2
+        }
+      ],
+      "camera": {
+        "viewMode": "2.5d-layered"
+      }
+    },
+    {
+      "id": "scene-settlement",
+      "title": "3. Multi-Rail ISO-8583 Clearing & 3D Platform Interop",
+      "narrative": "Events simultaneously commit to the ISO-8583 Settlement Ledger and stream live reconciliation manifests back to the Reconciliation Portal.",
+      "activeNodes": [
+        "pos-terminal",
+        "edge-gateway",
+        "risk-agent",
+        "event-bus",
+        "pci-vault",
+        "settlement-ledger",
+        "merchant-portal"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-pos-gw",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-gw-risk",
+          "stepOrder": 2
+        },
+        {
+          "edgeId": "e-risk-bus",
+          "stepOrder": 3
+        },
+        {
+          "edgeId": "e-bus-ledger",
+          "stepOrder": 4
+        },
+        {
+          "edgeId": "e-bus-portal",
+          "stepOrder": 5
+        }
+      ],
+      "camera": {
+        "viewMode": "3d-webgl"
+      }
+    }
+  ]
+}</script>
+  <script id="computed-layout" type="application/json">{"width":1760,"height":680,"planes":[{"id":"plane-access","label":"Layer 1: Merchant Access Points & SDKs","elevation":150,"y":56,"height":158},{"id":"plane-core","label":"Layer 2: API Gateway, AI Risk & Routing Mesh","elevation":75,"y":238,"height":158},{"id":"plane-rails","label":"Layer 3: Card Rails, Token Vault & Ledger","elevation":0,"y":420,"height":158}],"nodes":{"pos-terminal":{"id":"pos-terminal","x":72,"y":94,"width":228,"height":82,"column":0,"planeIndex":0,"elevation":150},"merchant-portal":{"id":"merchant-portal","x":1400,"y":94,"width":228,"height":82,"column":4,"planeIndex":0,"elevation":150},"edge-gateway":{"id":"edge-gateway","x":404,"y":276,"width":228,"height":82,"column":1,"planeIndex":1,"elevation":75},"risk-agent":{"id":"risk-agent","x":736,"y":276,"width":228,"height":82,"column":2,"planeIndex":1,"elevation":75},"event-bus":{"id":"event-bus","x":1068,"y":276,"width":228,"height":82,"column":3,"planeIndex":1,"elevation":75},"pci-vault":{"id":"pci-vault","x":736,"y":458,"width":228,"height":82,"column":2,"planeIndex":2,"elevation":0},"settlement-ledger":{"id":"settlement-ledger","x":1400,"y":458,"width":228,"height":82,"column":4,"planeIndex":2,"elevation":0}},"edges":{"e-pos-gw":{"id":"e-pos-gw","source":"pos-terminal","target":"edge-gateway","pathD":"M 300 135 C 354.08 135, 349.92 317, 404 317","labelX":352,"labelY":216,"isVerticalConduit":true},"e-gw-vault":{"id":"e-gw-vault","source":"edge-gateway","target":"pci-vault","pathD":"M 632 317 C 686.08 317, 681.92 499, 736 499","labelX":684,"labelY":398,"isVerticalConduit":true},"e-gw-risk":{"id":"e-gw-risk","source":"edge-gateway","target":"risk-agent","pathD":"M 632 317 C 686.08 317, 681.92 317, 736 317","labelX":684,"labelY":307,"isVerticalConduit":false},"e-risk-bus":{"id":"e-risk-bus","source":"risk-agent","target":"event-bus","pathD":"M 964 317 C 1018.08 317, 1013.92 317, 1068 317","labelX":1016,"labelY":307,"isVerticalConduit":false},"e-bus-ledger":{"id":"e-bus-ledger","source":"event-bus","target":"settlement-ledger","pathD":"M 1296 317 C 1350.08 317, 1345.92 499, 1400 499","labelX":1348,"labelY":398,"isVerticalConduit":true},"e-bus-portal":{"id":"e-bus-portal","source":"event-bus","target":"merchant-portal","pathD":"M 1296 317 C 1350.08 317, 1345.92 135, 1400 135","labelX":1348,"labelY":216,"isVerticalConduit":true}},"unresolvedNodes":[],"unresolvedEdges":[]}</script>
+  <script>(() => {
+// src/runtime/store.ts
+function createStore(spec, layout) {
+  const initialScene = spec.scenes?.[0];
+  const state = {
+    spec,
+    layout,
+    sceneIndex: 0,
+    viewMode: initialScene?.camera?.viewMode || spec.meta?.defaultView || "2d-flow",
+    selectedItem: null,
+    whiteboardMode: false,
+    pinMode: false,
+    playing: true,
+    panX: 30,
+    panY: 20,
+    zoom: 0.92,
+    orbitYaw: -0.48,
+    orbitPitch: 0.52,
+    sketchOps: []
+  };
+  const listeners = new Set;
+  return {
+    getState: () => state,
+    setState: (partial) => {
+      Object.assign(state, partial);
+      listeners.forEach((fn) => fn(state));
+    },
+    subscribe: (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    }
+  };
+}
+
+// src/runtime/dom-utils.ts
+function el(tag, attrs = {}, children = []) {
+  const element = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null)
+      continue;
+    if (k === "className")
+      element.className = String(v);
+    else if (k === "style" && typeof v === "object")
+      Object.assign(element.style, v);
+    else if (k.startsWith("on") && typeof v === "function") {
+      element.addEventListener(k.slice(2).toLowerCase(), v);
+    } else
+      element.setAttribute(k, String(v));
+  }
+  for (const child of children) {
+    element.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  return element;
+}
+function svgEl(tag, attrs = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v !== undefined && v !== null)
+      element.setAttribute(k, String(v));
+  }
+  return element;
+}
+function clearChildren(node) {
+  if (!node)
+    return;
+  while (node.firstChild)
+    node.removeChild(node.firstChild);
+}
+
+// src/runtime/renderer-grid.ts
+function renderPlanes(container, state) {
+  clearChildren(container);
+  const planes = state.layout?.planes || [];
+  const is25d = state.viewMode === "2.5d-layered";
+  for (const plane of planes) {
+    const zOffset = is25d ? (plane.elevation || 0) * 0.45 : 0;
+    const band = el("div", {
+      className: "plane-band",
+      "data-plane-id": plane.id,
+      style: {
+        top: `${plane.y}px`,
+        height: `${plane.height}px`,
+        transform: is25d ? `translateZ(${zOffset}px)` : "none"
+      }
+    }, [
+      el("div", { className: "plane-label" }, [
+        `${plane.label} ${is25d ? `· ELEV +${plane.elevation}` : ""}`
+      ])
+    ]);
+    container.appendChild(band);
+  }
+}
+function applyCameraTransform(worldEl, state) {
+  worldEl.style.width = `${state.layout.width}px`;
+  worldEl.style.height = `${state.layout.height}px`;
+  if (state.viewMode === "2.5d-layered") {
+    worldEl.classList.add("layered-25d");
+    worldEl.style.transform = `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom}) rotateX(24deg) rotateZ(-7deg)`;
+  } else {
+    worldEl.classList.remove("layered-25d");
+    worldEl.style.transform = `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom})`;
+  }
+}
+
+// src/runtime/renderer-nodes.ts
+var KIND_ICONS = {
+  actor: "\uD83D\uDC64",
+  platform: "\uD83C\uDFDB️",
+  service: "⚙️",
+  agent: "\uD83E\uDDE0",
+  database: "\uD83D\uDDC4️",
+  document: "\uD83D\uDCC4",
+  queue: "⇄"
+};
+function renderNodes(container, state, onSelectNode, onDirectEditNode) {
+  clearChildren(container);
+  const scene = state.spec.scenes?.[state.sceneIndex];
+  const activeSet = new Set(scene?.activeNodes || []);
+  const is25d = state.viewMode === "2.5d-layered";
+  for (const node of state.spec.nodes || []) {
+    const pos = state.layout.nodes?.[node.id];
+    if (!pos)
+      continue;
+    const isActive = activeSet.size === 0 || activeSet.has(node.id);
+    const isSelected = state.selectedItem?.type === "node" && state.selectedItem?.id === node.id;
+    const zLift = is25d ? (pos.elevation || 0) * 0.45 + 8 : 0;
+    const titleEl = el("div", { className: "node-title", title: "Double-click to edit label directly" }, [node.label]);
+    titleEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      titleEl.contentEditable = "true";
+      titleEl.focus();
+    });
+    titleEl.addEventListener("blur", () => {
+      titleEl.contentEditable = "false";
+      const next = (titleEl.textContent || "").trim();
+      if (next && next !== node.label) {
+        node.label = next;
+        onDirectEditNode?.({ action: "UPDATE_NODE", nodeId: node.id, label: next });
+      }
+    });
+    const card = el("div", {
+      className: `node-card ${isActive ? "active" : "dimmed"} ${isSelected ? "selected" : ""}`,
+      "data-node-id": node.id,
+      style: {
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${pos.width}px`,
+        height: `${pos.height}px`,
+        transform: is25d ? `translateZ(${zLift}px)` : "none"
+      },
+      onClick: (e) => {
+        e.stopPropagation();
+        onSelectNode(node.id);
+      }
+    }, [
+      el("div", { className: "node-top" }, [
+        el("span", { className: "node-kind-icon" }, [KIND_ICONS[node.kind] || "◈"]),
+        el("span", { className: "node-badge" }, [
+          node.metadata?.protocol || String(node.kind).toUpperCase()
+        ])
+      ]),
+      titleEl
+    ]);
+    container.appendChild(card);
+  }
+}
+
+// src/runtime/renderer-edges.ts
+function renderEdges(svgRoot, state, onSelectEdge) {
+  clearChildren(svgRoot);
+  svgRoot.setAttribute("width", String(state.layout.width));
+  svgRoot.setAttribute("height", String(state.layout.height));
+  const scene = state.spec.scenes?.[state.sceneIndex];
+  const activeMap = new Map;
+  for (const ae of scene?.activeEdges || []) {
+    activeMap.set(ae.edgeId, ae);
+  }
+  for (const edge of state.spec.edges || []) {
+    const route = state.layout.edges?.[edge.id];
+    if (!route)
+      continue;
+    const activeSpec = activeMap.get(edge.id);
+    const isActive = Boolean(activeSpec);
+    const motion = activeSpec?.motionOverride || edge.motionPrimitive || "flow";
+    const g = svgEl("g", { "data-edge-id": edge.id });
+    const visiblePath = svgEl("path", {
+      id: `edge-path-${edge.id}`,
+      d: route.pathD,
+      class: `edge-path ${isActive ? `active-${motion}` : "dimmed"}`
+    });
+    const hitPath = svgEl("path", {
+      d: route.pathD,
+      class: "edge-hit"
+    });
+    hitPath.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onSelectEdge(edge.id);
+    });
+    g.appendChild(visiblePath);
+    g.appendChild(hitPath);
+    if (edge.protocol || edge.label) {
+      const labelText = svgEl("text", {
+        x: route.labelX,
+        y: route.labelY,
+        "text-anchor": "middle",
+        fill: isActive ? "#141413" : "#9E9D99",
+        "font-family": "var(--font-mono)",
+        "font-size": "10"
+      });
+      labelText.textContent = edge.protocol ? `[${edge.protocol}] ${edge.label || ""}`.trim() : edge.label;
+      g.appendChild(labelText);
+    }
+    svgRoot.appendChild(g);
+  }
+  const packetLayer = svgEl("g", { id: "packet-layer" });
+  svgRoot.appendChild(packetLayer);
+}
+
+// src/runtime/renderer-packets.ts
+var MOTION_COLORS = {
+  flow: "#1D4ED8",
+  pulse: "#EA580C",
+  fork: "#15803D",
+  join: "#6D28D9",
+  error: "#B91C1C"
+};
+var rafId = 0;
+function startPacketAnimator(svgRoot, getState) {
+  if (rafId)
+    cancelAnimationFrame(rafId);
+  const tick = (now) => {
+    const state = getState();
+    const packetLayer = svgRoot.querySelector("#packet-layer");
+    if (packetLayer && state.playing) {
+      clearChildren(packetLayer);
+      const scene = state.spec.scenes?.[state.sceneIndex];
+      const activeEdges = scene?.activeEdges || [];
+      for (const ae of activeEdges) {
+        const edge = state.spec.edges?.find((e) => e.id === ae.edgeId);
+        const pathEl = svgRoot.querySelector(`#edge-path-${ae.edgeId}`);
+        if (!edge || !pathEl || typeof pathEl.getTotalLength !== "function")
+          continue;
+        const len = pathEl.getTotalLength();
+        if (len <= 0)
+          continue;
+        const motion = ae.motionOverride || edge.motionPrimitive || "flow";
+        const color = MOTION_COLORS[motion] || "#1D4ED8";
+        const speed = motion === "pulse" ? 1400 : 2100;
+        const rawT = (now + (ae.stepOrder || 0) * 320) % speed / speed;
+        const t = motion === "error" ? Math.min(0.5, rawT) : rawT;
+        const pt = pathEl.getPointAtLength(t * len);
+        const dot = svgEl("circle", {
+          cx: pt.x,
+          cy: pt.y,
+          r: motion === "pulse" ? 5.5 : 4.2,
+          fill: color,
+          stroke: "#FFFFFF",
+          "stroke-width": "1.5"
+        });
+        packetLayer.appendChild(dot);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+}
+
+// src/runtime/ui-narrative.ts
+function renderNarrativeHud(hudEl, state, onSelectScene, onTogglePlay) {
+  clearChildren(hudEl);
+  const scenes = state.spec.scenes || [];
+  const current = scenes[state.sceneIndex] || {
+    title: "System Overview",
+    narrative: "No narrative scene defined."
+  };
+  const leftBox = el("div", { className: "narrative-box" }, [
+    el("div", { className: "scene-kicker" }, [
+      `SCENE 0${state.sceneIndex + 1} / 0${scenes.length} · ${current.title}`
+    ]),
+    el("div", { className: "scene-narrative" }, [current.narrative])
+  ]);
+  const controls = el("div", { className: "toolbar-group" }, [
+    el("button", {
+      className: "btn",
+      onClick: () => onSelectScene((state.sceneIndex - 1 + scenes.length) % scenes.length)
+    }, ["← Prev"]),
+    el("button", {
+      className: `btn ${state.playing ? "active" : ""}`,
+      onClick: onTogglePlay
+    }, [state.playing ? "⏸ Pause" : "▶ Play"]),
+    el("button", {
+      className: "btn btn-accent",
+      onClick: () => onSelectScene((state.sceneIndex + 1) % scenes.length)
+    }, ["Next Scene →"])
+  ]);
+  hudEl.appendChild(leftBox);
+  hudEl.appendChild(controls);
+}
+
+// src/runtime/ui-inspector.ts
+function renderInspector(inspectorEl, state, onClose, onDirectOp) {
+  clearChildren(inspectorEl);
+  const sel = state.selectedItem;
+  if (!sel) {
+    inspectorEl.classList.remove("open");
+    return;
+  }
+  inspectorEl.classList.add("open");
+  inspectorEl.appendChild(el("button", { className: "btn", style: { float: "right" }, onClick: onClose }, ["✕ Close"]));
+  if (sel.type === "node") {
+    const node = state.spec.nodes?.find((n) => n.id === sel.id);
+    if (!node)
+      return;
+    const preview = node.metadata?.artifactPreview;
+    const formattedPreview = preview ? typeof preview.content === "string" ? preview.content : JSON.stringify(preview.content, null, 2) : "no data";
+    const noteInput = el("input", {
+      className: "inspector-input",
+      placeholder: "Annotate or request change on this node...",
+      type: "text"
+    });
+    const addNoteBtn = el("button", {
+      className: "btn btn-accent",
+      style: { marginTop: "6px", width: "100%" },
+      onClick: () => {
+        const val = noteInput.value.trim();
+        if (!val)
+          return;
+        node.summary = `${node.summary} — [Note: ${val}]`;
+        onDirectOp?.({ action: "ANNOTATE_NODE", nodeId: node.id, note: val });
+        noteInput.value = "";
+      }
+    }, ["+ Queue Annotation for Agent Refactor"]);
+    inspectorEl.appendChild(el("div", {}, [
+      el("div", { className: "scene-kicker" }, [`${node.kind.toUpperCase()} · ${node.planeId}`]),
+      el("h3", { style: { marginTop: "6px", fontSize: "16px" } }, [node.label]),
+      el("p", { style: { marginTop: "8px", fontSize: "13px", color: "var(--ink-secondary)" } }, [
+        node.summary
+      ]),
+      el("div", { className: "scene-kicker", style: { marginTop: "14px" } }, ["DIRECT HTML ANNOTATION"]),
+      noteInput,
+      addNoteBtn,
+      el("div", { className: "scene-kicker", style: { marginTop: "16px" } }, [
+        `ARTIFACT / PAYLOAD PREVIEW (${preview?.type || "NONE"})`
+      ]),
+      el("pre", { className: "inspector-pre" }, [formattedPreview])
+    ]));
+  } else {
+    const edge = state.spec.edges?.find((e) => e.id === sel.id);
+    if (!edge)
+      return;
+    const sample = edge.payloadSample ? JSON.stringify(edge.payloadSample, null, 2) : "no data";
+    inspectorEl.appendChild(el("div", {}, [
+      el("div", { className: "scene-kicker" }, [
+        `EDGE · ${edge.protocol || "FLOW"} · ${edge.motionPrimitive.toUpperCase()}`
+      ]),
+      el("h3", { style: { marginTop: "6px", fontSize: "15px" } }, [`${edge.source} → ${edge.target}`]),
+      el("pre", { className: "inspector-pre" }, [sample])
+    ]));
+  }
+}
+
+// src/runtime/whiteboard.ts
+function attachWhiteboard(svgOverlay, getState, onNewOperation) {
+  let drawing = false;
+  let points = [];
+  let activePath = null;
+  const toWorldPoint = (e) => {
+    const rect = svgOverlay.getBoundingClientRect();
+    const s = getState();
+    return {
+      x: (e.clientX - rect.left) / (s.zoom || 1),
+      y: (e.clientY - rect.top) / (s.zoom || 1)
+    };
+  };
+  const hitTestNode = (pt, state) => {
+    for (const [id, box] of Object.entries(state.layout.nodes || {})) {
+      if (pt.x >= box.x && pt.x <= box.x + box.width && pt.y >= box.y && pt.y <= box.y + box.height) {
+        return id;
+      }
+    }
+    return null;
+  };
+  svgOverlay.addEventListener("pointerdown", (e) => {
+    const state = getState();
+    if (!state.whiteboardMode)
+      return;
+    drawing = true;
+    points = [toWorldPoint(e)];
+    activePath = svgEl("path", {
+      fill: "none",
+      stroke: "#EA580C",
+      "stroke-width": "2.5",
+      "stroke-linecap": "round",
+      d: `M ${points[0].x} ${points[0].y}`
+    });
+    svgOverlay.appendChild(activePath);
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drawing || !activePath)
+      return;
+    const pt = toWorldPoint(e);
+    points.push(pt);
+    activePath.setAttribute("d", points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" "));
+  });
+  window.addEventListener("pointerup", () => {
+    if (!drawing || points.length < 2) {
+      drawing = false;
+      return;
+    }
+    drawing = false;
+    const state = getState();
+    const startNode = hitTestNode(points[0], state);
+    const endNode = hitTestNode(points[points.length - 1], state);
+    if (startNode && endNode && startNode !== endNode) {
+      onNewOperation({ action: "ADD_EDGE", from: startNode, to: endNode, protocol: "Event" });
+    } else {
+      const endPt = points[points.length - 1];
+      const plane = state.layout.planes?.find((p) => endPt.y >= p.y && endPt.y <= p.y + p.height) || state.layout.planes?.[0];
+      onNewOperation({
+        action: "ADD_NODE",
+        label: `Sketch Node ${state.sketchOps.length + 1}`,
+        planeId: plane?.id || "plane-orchestration"
+      });
+    }
+  });
+}
+
+// src/runtime/renderer-3d.ts
+var KIND_HEX = {
+  actor: "#6D28D9",
+  platform: "#1D4ED8",
+  service: "#0F766E",
+  agent: "#EA580C",
+  database: "#15803D",
+  document: "#B45309",
+  queue: "#BE185D"
+};
+function start3DRenderer(canvas, getState, setState) {
+  let dragging = false, lx = 0, ly = 0;
+  let projectedBoxes = [];
+  canvas.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    lx = e.clientX;
+    ly = e.clientY;
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!dragging || getState().viewMode !== "3d-webgl")
+      return;
+    const s = getState();
+    setState({ orbitYaw: s.orbitYaw + (e.clientX - lx) * 0.007, orbitPitch: Math.max(0.15, Math.min(1.25, s.orbitPitch + (e.clientY - ly) * 0.007)) });
+    lx = e.clientX;
+    ly = e.clientY;
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (dragging && Math.hypot(e.clientX - lx, e.clientY - ly) < 4 && getState().viewMode === "3d-webgl") {
+      const rect = canvas.getBoundingClientRect();
+      const hit = projectedBoxes.find((b) => Math.hypot(e.clientX - rect.left - b.x, e.clientY - rect.top - b.y) <= b.r);
+      if (hit)
+        setState({ selectedItem: { type: "node", id: hit.id } });
+    }
+    dragging = false;
+  });
+  const project = (wx, wy, wz, cx, cy, s) => {
+    const cyaw = Math.cos(s.orbitYaw), syaw = Math.sin(s.orbitYaw), cp = Math.cos(s.orbitPitch), sp = Math.sin(s.orbitPitch);
+    const rx = wx * cyaw - wy * syaw, ry = wx * syaw + wy * cyaw;
+    const py = ry * cp - wz * sp, pz = ry * sp + wz * cp + 950;
+    const fov = 820 * s.zoom / Math.max(220, pz);
+    return { x: cx + rx * fov, y: cy + py * fov, scale: fov };
+  };
+  const drawFrame = (now) => {
+    const s = getState();
+    const ctx = s.viewMode === "3d-webgl" ? canvas.getContext("2d") : null;
+    if (ctx) {
+      const w = canvas.width = canvas.clientWidth || 1100, h = canvas.height = canvas.clientHeight || 680;
+      ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2 + 20, lw = s.layout.width || 1120, lh = s.layout.height || 680;
+      for (const pl of s.layout.planes || []) {
+        const z = (pl.elevation - 70) * 1.65;
+        const c1 = project(-lw * 0.42, pl.y - lh / 2, z, cx, cy, s), c2 = project(lw * 0.42, pl.y - lh / 2, z, cx, cy, s);
+        const c3 = project(lw * 0.42, pl.y + pl.height - lh / 2, z, cx, cy, s), c4 = project(-lw * 0.42, pl.y + pl.height - lh / 2, z, cx, cy, s);
+        ctx.fillStyle = "rgba(255,255,255,0.58)";
+        ctx.strokeStyle = "#C8C4B8";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(c1.x, c1.y);
+        ctx.lineTo(c2.x, c2.y);
+        ctx.lineTo(c3.x, c3.y);
+        ctx.lineTo(c4.x, c4.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#686763";
+        ctx.font = "600 10px monospace";
+        ctx.fillText(`${pl.label} [Z:${pl.elevation}]`, c1.x + 12, c1.y + 16);
+      }
+      const activeEdges = new Set((s.spec.scenes?.[s.sceneIndex]?.activeEdges || []).map((a) => a.edgeId));
+      for (const edge of s.spec.edges || []) {
+        const sn = s.layout.nodes?.[edge.source], tn = s.layout.nodes?.[edge.target];
+        if (!sn || !tn)
+          continue;
+        const p1 = project(sn.x + sn.width / 2 - lw / 2, sn.y + sn.height / 2 - lh / 2, (sn.elevation - 70) * 1.65 + 18, cx, cy, s);
+        const p2 = project(tn.x + tn.width / 2 - lw / 2, tn.y + tn.height / 2 - lh / 2, (tn.elevation - 70) * 1.65 + 18, cx, cy, s);
+        const isAct = activeEdges.has(edge.id), mx = (p1.x + p2.x) / 2, my = Math.min(p1.y, p2.y) - 34;
+        ctx.strokeStyle = isAct ? "#1D4ED8" : "rgba(158,157,153,0.35)";
+        ctx.lineWidth = isAct ? 2.6 : 1.2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(mx, my, p2.x, p2.y);
+        ctx.stroke();
+        if (isAct && s.playing) {
+          const t = now % 1800 / 1800, qx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * mx + t * t * p2.x, qy = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * my + t * t * p2.y;
+          ctx.fillStyle = "#EA580C";
+          ctx.beginPath();
+          ctx.arc(qx, qy, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      projectedBoxes = [];
+      for (const node of s.spec.nodes || []) {
+        const pos = s.layout.nodes?.[node.id];
+        if (!pos)
+          continue;
+        const top = project(pos.x + pos.width / 2 - lw / 2, pos.y + pos.height / 2 - lh / 2, (pos.elevation - 70) * 1.65 + 32, cx, cy, s);
+        const bw = 96 * top.scale, bh = 36 * top.scale, color = KIND_HEX[node.kind] || "#1D4ED8";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.fillRect(top.x - bw / 2, top.y - bh / 2, bw, bh);
+        ctx.strokeRect(top.x - bw / 2, top.y - bh / 2, bw, bh);
+        ctx.fillStyle = "#141413";
+        ctx.font = `600 ${Math.max(10, Math.round(12 * top.scale))}px sans-serif`;
+        ctx.fillText(node.label.slice(0, 22), top.x - bw / 2 + 8, top.y + 4);
+        projectedBoxes.push({ id: node.id, x: top.x, y: top.y, r: Math.max(bw, bh) * 0.55 });
+      }
+    }
+    requestAnimationFrame(drawFrame);
+  };
+  requestAnimationFrame(drawFrame);
+}
+
+// src/runtime/direct-edit.ts
+function renderPins(container, state) {
+  container.innerHTML = "";
+  for (const pin of state.spec.annotations || []) {
+    container.appendChild(el("div", { className: "pin-badge", style: { left: `${pin.x}px`, top: `${pin.y}px` } }, [
+      el("span", { className: "pin-icon" }, ["\uD83D\uDCCC"]),
+      el("span", { className: "pin-text" }, [pin.text])
+    ]));
+  }
+}
+function attachDirectHtmlInteractions(viewportEl, nodesEl, getState, setState, recordOp) {
+  let dragNodeId = null, startMouse = { x: 0, y: 0 }, startPos = { x: 0, y: 0 }, moved = false;
+  nodesEl.addEventListener("pointerdown", (e) => {
+    const target = e.target;
+    if (target.isContentEditable)
+      return;
+    const nodeId = target.closest(".node-card")?.getAttribute("data-node-id");
+    const s = getState();
+    const pos = nodeId ? s.layout.nodes?.[nodeId] : null;
+    if (!nodeId || !pos || s.whiteboardMode || s.pinMode)
+      return;
+    dragNodeId = nodeId;
+    moved = false;
+    startMouse = { x: e.clientX, y: e.clientY };
+    startPos = { x: pos.x, y: pos.y };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!dragNodeId)
+      return;
+    const s = getState();
+    const dx = (e.clientX - startMouse.x) / (s.zoom || 1), dy = (e.clientY - startMouse.y) / (s.zoom || 1);
+    if (Math.hypot(dx, dy) > 5)
+      moved = true;
+    const pos = s.layout.nodes?.[dragNodeId];
+    if (moved && pos) {
+      pos.x = Math.round(startPos.x + dx);
+      pos.y = Math.round(startPos.y + dy);
+      const card = nodesEl.querySelector(`[data-node-id="${dragNodeId}"]`);
+      if (card) {
+        card.style.left = `${pos.x}px`;
+        card.style.top = `${pos.y}px`;
+      }
+    }
+  });
+  window.addEventListener("pointerup", () => {
+    if (dragNodeId && moved) {
+      const s = getState(), pos = s.layout.nodes?.[dragNodeId];
+      if (pos) {
+        const plane = s.layout.planes?.find((p) => pos.y >= p.y && pos.y <= p.y + p.height);
+        recordOp({ action: "MOVE_NODE", nodeId: dragNodeId, x: pos.x, y: pos.y, planeId: plane?.id });
+      }
+    }
+    dragNodeId = null;
+  });
+  document.getElementById("btn-add-node")?.addEventListener("click", () => {
+    const s = getState();
+    const label = window.prompt("New Component / Node Name:", "Auth & Policy Service") || "";
+    if (!label.trim())
+      return;
+    const planeId = s.spec.planes?.[1]?.id || s.spec.planes?.[0]?.id || "plane-orchestration";
+    recordOp({ action: "ADD_NODE", label: label.trim(), planeId });
+    window.parent?.postMessage({ type: "LIVING_ARCH_REFACTOR_REQUEST", spec: s.spec, operations: getState().sketchOps }, "*");
+  });
+  viewportEl.addEventListener("click", (e) => {
+    const s = getState();
+    if (!s.pinMode)
+      return;
+    const rect = viewportEl.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left - s.panX) / (s.zoom || 1)), y = Math.round((e.clientY - rect.top - s.panY) / (s.zoom || 1));
+    const text = window.prompt("Annotation / Change Instruction for Agent:", "Add OAuth2 mTLS gateway here") || "";
+    if (!text.trim())
+      return;
+    (s.spec.annotations = s.spec.annotations || []).push({ id: `pin-${Date.now()}`, x, y, text: text.trim() });
+    recordOp({ action: "ADD_PIN_NOTE", x, y, text: text.trim() });
+    setState({ pinMode: false });
+  });
+}
+
+// src/runtime/app.ts
+function bootLivingArchitectureCanvas() {
+  const specEl = document.getElementById("architecture-spec");
+  const layoutEl = document.getElementById("computed-layout");
+  if (!specEl || !layoutEl)
+    return;
+  const store = createStore(JSON.parse(specEl.textContent || "{}"), JSON.parse(layoutEl.textContent || "{}"));
+  const worldEl = document.getElementById("world");
+  const planesEl = document.getElementById("planes-layer");
+  const nodesEl = document.getElementById("nodes-layer");
+  const pinsEl = document.getElementById("pins-layer");
+  const edgesSvg = document.getElementById("edges-svg");
+  const wbSvg = document.getElementById("whiteboard-svg");
+  const webglCanvas = document.getElementById("webgl-canvas");
+  const hudEl = document.getElementById("hud-bar");
+  const inspectorEl = document.getElementById("inspector");
+  const viewportEl = document.getElementById("viewport");
+  const recordOp = (op) => {
+    const s = store.getState();
+    const nextOps = [...s.sketchOps, op];
+    store.setState({ sketchOps: nextOps });
+    window.parent?.postMessage({ type: "LIVING_ARCH_OP_QUEUED", op, operations: nextOps, spec: s.spec }, "*");
+  };
+  const syncUI = () => {
+    const s = store.getState();
+    const is3d = s.viewMode === "3d-webgl";
+    worldEl.style.display = is3d ? "none" : "block";
+    if (webglCanvas)
+      webglCanvas.style.display = is3d ? "block" : "none";
+    wbSvg.setAttribute("width", String(s.layout.width));
+    wbSvg.setAttribute("height", String(s.layout.height));
+    wbSvg.classList.toggle("active", s.whiteboardMode);
+    viewportEl.classList.toggle("whiteboard-active", s.whiteboardMode || s.pinMode);
+    applyCameraTransform(worldEl, s);
+    renderPlanes(planesEl, s);
+    renderEdges(edgesSvg, s, (edgeId) => store.setState({ selectedItem: { type: "edge", id: edgeId } }));
+    renderNodes(nodesEl, s, (nodeId) => store.setState({ selectedItem: { type: "node", id: nodeId } }), recordOp);
+    if (pinsEl)
+      renderPins(pinsEl, s);
+    renderNarrativeHud(hudEl, s, (idx) => store.setState({ sceneIndex: idx, viewMode: s.spec.scenes?.[idx]?.camera?.viewMode || s.viewMode }), () => store.setState({ playing: !s.playing }));
+    renderInspector(inspectorEl, s, () => store.setState({ selectedItem: null }), recordOp);
+    document.getElementById("btn-view-2d")?.classList.toggle("active", s.viewMode === "2d-flow");
+    document.getElementById("btn-toggle-25d")?.classList.toggle("active", s.viewMode === "2.5d-layered");
+    document.getElementById("btn-view-3d")?.classList.toggle("active", s.viewMode === "3d-webgl");
+    document.getElementById("btn-toggle-wb")?.classList.toggle("active", s.whiteboardMode);
+    document.getElementById("btn-pin-note")?.classList.toggle("active", s.pinMode);
+    const btnDiff = document.getElementById("btn-export-diff");
+    if (btnDiff)
+      btnDiff.textContent = `Copy Diff (${s.sketchOps.length})`;
+  };
+  store.subscribe(syncUI);
+  attachWhiteboard(wbSvg, store.getState, recordOp);
+  attachDirectHtmlInteractions(viewportEl, nodesEl, store.getState, store.setState, recordOp);
+  if (webglCanvas)
+    start3DRenderer(webglCanvas, store.getState, store.setState);
+  document.getElementById("btn-view-2d")?.addEventListener("click", () => store.setState({ viewMode: "2d-flow" }));
+  document.getElementById("btn-toggle-25d")?.addEventListener("click", () => store.setState({ viewMode: store.getState().viewMode === "2.5d-layered" ? "2d-flow" : "2.5d-layered" }));
+  document.getElementById("btn-view-3d")?.addEventListener("click", () => store.setState({ viewMode: "3d-webgl" }));
+  document.getElementById("btn-toggle-wb")?.addEventListener("click", () => store.setState({ whiteboardMode: !store.getState().whiteboardMode, pinMode: false }));
+  document.getElementById("btn-pin-note")?.addEventListener("click", () => store.setState({ pinMode: !store.getState().pinMode, whiteboardMode: false }));
+  document.getElementById("btn-export-diff")?.addEventListener("click", () => {
+    const payload = JSON.stringify({ timestamp: new Date().toISOString(), operations: store.getState().sketchOps }, null, 2);
+    navigator.clipboard?.writeText(payload);
+    inspectorEl.classList.add("open");
+    inspectorEl.innerHTML = `<div class="scene-kicker">WHITEBOARD & HTML DIFF EXPORT</div><pre class="inspector-pre">${payload}</pre>`;
+  });
+  document.getElementById("btn-refactor-agent")?.addEventListener("click", () => {
+    const s = store.getState();
+    window.parent?.postMessage({ type: "LIVING_ARCH_REFACTOR_REQUEST", spec: s.spec, operations: s.sketchOps }, "*");
+  });
+  syncUI();
+  startPacketAnimator(edgesSvg, store.getState);
+}
+
+if (typeof bootLivingArchitectureCanvas === 'function') bootLivingArchitectureCanvas();
+})();</script>
+</body>
+</html>

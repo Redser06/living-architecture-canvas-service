@@ -15,7 +15,8 @@ const KIND_ICONS: Record<string, string> = {
 export function renderNodes(
   container: HTMLElement,
   state: CanvasRuntimeState,
-  onSelectNode: (nodeId: string) => void
+  onSelectNode: (nodeId: string) => void,
+  onDirectEditNode?: (op: any) => void
 ): void {
   clearChildren(container);
   const scene = state.spec.scenes?.[state.sceneIndex];
@@ -27,11 +28,24 @@ export function renderNodes(
     if (!pos) continue;
 
     const isActive = activeSet.size === 0 || activeSet.has(node.id);
-    const isSelected =
-      state.selectedItem?.type === 'node' && state.selectedItem?.id === node.id;
+    const isSelected = state.selectedItem?.type === 'node' && state.selectedItem?.id === node.id;
     const zLift = is25d ? (pos.elevation || 0) * 0.45 + 8 : 0;
 
-    // PRD Section 3: Every node displays a maximum of 3 data points at rest (Icon + Title + Type Badge)
+    const titleEl = el('div', { className: 'node-title', title: 'Double-click to edit label directly' }, [node.label]);
+    titleEl.addEventListener('dblclick', (e) => {
+      e.stopPropagation();
+      titleEl.contentEditable = 'true';
+      titleEl.focus();
+    });
+    titleEl.addEventListener('blur', () => {
+      titleEl.contentEditable = 'false';
+      const next = (titleEl.textContent || '').trim();
+      if (next && next !== node.label) {
+        node.label = next;
+        onDirectEditNode?.({ action: 'UPDATE_NODE', nodeId: node.id, label: next });
+      }
+    });
+
     const card = el(
       'div',
       {
@@ -56,7 +70,7 @@ export function renderNodes(
             node.metadata?.protocol || String(node.kind).toUpperCase(),
           ]),
         ]),
-        el('div', { className: 'node-title' }, [node.label]),
+        titleEl,
       ]
     );
 

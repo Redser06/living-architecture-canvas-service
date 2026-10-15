@@ -3,7 +3,7 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <title>Stephen Strange: Market Horizon — Living Architecture Canvas</title>
+  <title>Untitled System Architecture — Living Architecture Canvas</title>
   <style>:root {
   --bg-canvas: #F8F7F4;
   --grid-dot: #E6E4DD;
@@ -43,20 +43,21 @@ html, body {
   display: flex; align-items: center; justify-content: space-between;
   padding: 0 24px; z-index: 40;
 }
-.brand-block { display: flex; align-items: baseline; gap: 12px; }
-.brand-title { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
-.brand-meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-secondary); text-transform: uppercase; }
-.toolbar-group { display: flex; align-items: center; gap: 8px; }
+.brand-block { display: flex; align-items: baseline; gap: 10px; white-space: nowrap; overflow: hidden; }
+.brand-title { font-size: 14.5px; font-weight: 650; letter-spacing: -0.02em; }
+.brand-meta { font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-secondary); text-transform: uppercase; }
+.toolbar-group { display: flex; align-items: center; gap: 6px; flex-wrap: nowrap; }
 
 .btn {
   background: var(--surface-card);
   border: 1px solid var(--border-subtle);
   color: var(--ink-primary);
   font-family: var(--font-sans);
-  font-size: 12px; font-weight: 550;
-  padding: 6px 12px; border-radius: 6px;
+  font-size: 11.5px; font-weight: 550;
+  padding: 5px 10px; border-radius: 6px;
   cursor: pointer; transition: all 0.15s ease;
   box-shadow: var(--shadow-card);
+  white-space: nowrap; flex-shrink: 0;
 }
 .btn:hover { border-color: var(--ink-secondary); }
 .btn.active { background: var(--ink-primary); color: #FFF; border-color: var(--ink-primary); }
@@ -77,6 +78,18 @@ html, body {
 }
 #world.layered-25d {
   transform: translate3d(var(--cam-x, 40px), var(--cam-y, 20px), 0) scale(var(--cam-scale, 0.85)) rotateX(24deg) rotateZ(-8deg);
+}
+
+#webgl-canvas {
+  position: absolute; inset: 0; width: 100%; height: 100%;
+  display: none; cursor: grab;
+}
+
+#direct-edit-hint {
+  position: absolute; bottom: 12px; left: 20px;
+  font-family: var(--font-mono); font-size: 10.5px; color: var(--ink-secondary);
+  background: rgba(255, 255, 255, 0.88); border: 1px solid var(--border-subtle);
+  padding: 4px 10px; border-radius: 6px; pointer-events: none; z-index: 30;
 }
 
 .plane-band {
@@ -140,8 +153,16 @@ html, body {
   text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
   background: #F2F0E8; color: var(--ink-secondary);
 }
-.node-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-primary); margin-top: 4px; }
-.node-proto { font-family: var(--font-mono); font-size: 10px; color: var(--ink-muted); }
+.node-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-primary); margin-top: 4px; outline: none; }
+.node-title[contenteditable="true"] { background: #FEF3C7; padding: 1px 4px; border-radius: 4px; }
+
+.pin-badge {
+  position: absolute; transform: translate(-50%, -100%);
+  background: #FEF3C7; border: 1px solid #F59E0B; color: #92400E;
+  font-size: 11px; font-weight: 600; padding: 4px 8px; border-radius: 6px;
+  box-shadow: var(--shadow-card); display: flex; align-items: center; gap: 4px;
+  z-index: 25; white-space: nowrap;
+}
 
 #hud-bar {
   position: fixed; bottom: 0; left: 0; right: 0; height: 76px;
@@ -163,6 +184,11 @@ html, body {
   transform: translateX(100%); transition: transform 0.25s ease; z-index: 45;
 }
 #inspector.open { transform: translateX(0); }
+.inspector-input {
+  width: 100%; margin-top: 6px; padding: 8px 10px;
+  border: 1px solid var(--border-strong); border-radius: 6px;
+  font-family: var(--font-sans); font-size: 12px;
+}
 .inspector-pre {
   margin-top: 10px; padding: 12px; border-radius: 6px;
   background: #F8F7F4; border: 1px solid var(--border-subtle);
@@ -173,13 +199,18 @@ html, body {
 <body>
   <header id="topbar">
     <div class="brand-block">
-      <span class="brand-title">Stephen Strange: Market Horizon</span>
-      <span class="brand-meta">v3.0 · EDITORIAL ARCHITECTURAL</span>
+      <span class="brand-title">Untitled System Architecture</span>
+      <span class="brand-meta">v1.0 · EDITORIAL ARCHITECTURAL · DIRECT-EDIT ENABLED</span>
     </div>
     <div class="toolbar-group">
+      <button id="btn-view-2d" class="btn">2D SVG</button>
       <button id="btn-toggle-25d" class="btn">2.5D Isometric Stack</button>
-      <button id="btn-toggle-wb" class="btn">✎ Whiteboard</button>
+      <button id="btn-view-3d" class="btn">3D WebGL / Three.js</button>
+      <button id="btn-add-node" class="btn">+ Add Node</button>
+      <button id="btn-toggle-wb" class="btn">✎ Connect / Draw</button>
+      <button id="btn-pin-note" class="btn">📌 Annotate</button>
       <button id="btn-export-diff" class="btn">Copy Diff (0)</button>
+      <button id="btn-refactor-agent" class="btn btn-accent">✨ Refactor HTML</button>
     </div>
   </header>
 
@@ -188,8 +219,11 @@ html, body {
       <div id="planes-layer"></div>
       <svg id="edges-svg"></svg>
       <div id="nodes-layer"></div>
+      <div id="pins-layer"></div>
       <svg id="whiteboard-svg"></svg>
     </div>
+    <canvas id="webgl-canvas"></canvas>
+    <div id="direct-edit-hint">Double-click node text to edit · Drag node to move · + Add Node · ✎ Connect · 📌 Annotate → ✨ Refactor HTML</div>
   </main>
 
   <aside id="inspector"></aside>
@@ -197,124 +231,80 @@ html, body {
 
   <script id="architecture-spec" type="application/json">{
   "meta": {
-    "title": "Stephen Strange: Market Horizon",
-    "version": "3.0",
+    "title": "Untitled System Architecture",
+    "subtitle": "Workable From-Scratch Canvas · Prompt, Upload Sketch, or Build Directly on Page",
+    "version": "1.0",
     "defaultView": "2d-flow"
   },
   "planes": [
     {
       "id": "plane-experience",
-      "label": "Layer 1: Executive Experience & Briefs",
+      "label": "Layer 1: Access Points & Client Surfaces",
       "elevation": 140
     },
     {
       "id": "plane-orchestration",
-      "label": "Layer 2: Stochastic Solver & DAG Engine",
+      "label": "Layer 2: APIs, Services & Agent Orchestration",
       "elevation": 70
     },
     {
       "id": "plane-data",
-      "label": "Layer 3: DuckDB & Cloud Persistence",
+      "label": "Layer 3: Data Stores, Queues & External Platforms",
       "elevation": 0
     }
   ],
   "nodes": [
     {
-      "id": "exec-scrubber",
-      "label": "Time Machine Scrubber",
+      "id": "client-entry",
+      "label": "Client Access Point",
       "kind": "actor",
       "planeId": "plane-experience",
-      "summary": "Interactive 60-month horizon slider branching roadmap realities.",
+      "summary": "Primary user, SDK, or webhook ingress surface. Double-click title to rename or drag to move.",
       "metadata": {
-        "protocol": "REACT-19",
+        "protocol": "HTTPS",
+        "accessPoint": "https://app.example.com",
         "artifactPreview": {
           "type": "json",
           "content": {
-            "branchMonth": 14,
-            "preset": "Competitor Moves First"
+            "client": "web-sdk",
+            "auth": "Bearer JWT",
+            "method": "POST /v1/dispatch"
           }
         }
       }
     },
     {
-      "id": "leave-brief",
-      "label": "Leave-the-Room Brief",
-      "kind": "document",
-      "planeId": "plane-experience",
-      "summary": "3-page printable executive verdict memo with P10/P50/P90 ARR.",
-      "metadata": {
-        "protocol": "PDF/MEMO",
-        "artifactPreview": {
-          "type": "markdown",
-          "content": "# Executive Verdict\nMedian 5Y NPV: $142.8M | Payback: Month 19 | VaR(P05): -$11.2M"
-        }
-      }
-    },
-    {
-      "id": "dag-solver",
-      "label": "Topological DAG Solver",
-      "kind": "agent",
-      "planeId": "plane-orchestration",
-      "summary": "Discrete quarterly capacity scheduler (250 pts/qtr) with shadow prices.",
-      "metadata": {
-        "protocol": "TS/PY",
-        "artifactPreview": {
-          "type": "json",
-          "content": {
-            "capacityPerQuarter": 250,
-            "shadowPricePerPt": "$48.2K"
-          }
-        }
-      }
-    },
-    {
-      "id": "monte-carlo",
-      "label": "Vectorized Monte Carlo",
+      "id": "core-service",
+      "label": "Core Orchestrator API",
       "kind": "service",
       "planeId": "plane-orchestration",
-      "summary": "25,000-path stochastic diffusion engine with Poisson preemption.",
+      "summary": "Central business logic, routing, and policy enforcement service.",
       "metadata": {
-        "protocol": "NUMPY",
+        "protocol": "REST/gRPC",
         "artifactPreview": {
           "type": "json",
           "content": {
-            "paths": 25000,
-            "wacc": 0.1,
-            "parityDeltaPct": 1.42
+            "service": "core-orchestrator",
+            "slaP99Ms": 25,
+            "retries": 3
           }
         }
       }
     },
     {
-      "id": "duckdb-store",
-      "label": "DuckDB SEC Baseline",
+      "id": "primary-store",
+      "label": "Primary State Store",
       "kind": "database",
       "planeId": "plane-data",
-      "summary": "Historical 2021-2024 financial baseline & TAM overlap matrices.",
+      "summary": "Transactional persistence layer and event outbox.",
       "metadata": {
         "protocol": "SQL",
         "artifactPreview": {
           "type": "json",
           "content": {
-            "table": "sec_baselines",
-            "rows": 14200
-          }
-        }
-      }
-    },
-    {
-      "id": "firestore-sync",
-      "label": "Cloud Firestore Briefs",
-      "kind": "database",
-      "planeId": "plane-data",
-      "summary": "Immutable scenario brief snapshots for instant boardroom sharing.",
-      "metadata": {
-        "protocol": "NOSQL",
-        "artifactPreview": {
-          "type": "json",
-          "content": {
-            "collection": "/scenario_briefs",
-            "ttlDays": 365
+            "engine": "PostgreSQL",
+            "replication": "multi-az",
+            "outboxEnabled": true
           }
         }
       }
@@ -322,68 +312,47 @@ html, body {
   ],
   "edges": [
     {
-      "id": "e-scrub-dag",
-      "source": "exec-scrubber",
-      "target": "dag-solver",
-      "label": "Branch Spec",
+      "id": "e-client-core",
+      "source": "client-entry",
+      "target": "core-service",
+      "label": "Ingress Request",
       "protocol": "REST",
-      "motionPrimitive": "pulse",
+      "motionPrimitive": "flow",
       "payloadSample": {
-        "overrideKilled": [
-          "feat-legacy"
-        ]
+        "requestId": "req_01",
+        "action": "execute"
       }
     },
     {
-      "id": "e-duck-dag",
-      "source": "duckdb-store",
-      "target": "dag-solver",
-      "label": "Baseline Constraints",
+      "id": "e-core-store",
+      "source": "core-service",
+      "target": "primary-store",
+      "label": "Persist State",
       "protocol": "SQL",
-      "motionPrimitive": "flow"
-    },
-    {
-      "id": "e-dag-mc",
-      "source": "dag-solver",
-      "target": "monte-carlo",
-      "label": "Scheduled Quarters",
-      "protocol": "gRPC",
-      "motionPrimitive": "fork"
-    },
-    {
-      "id": "e-mc-brief",
-      "source": "monte-carlo",
-      "target": "leave-brief",
-      "label": "NPV Distribution",
-      "protocol": "Document-Link",
-      "motionPrimitive": "join"
-    },
-    {
-      "id": "e-mc-fire",
-      "source": "monte-carlo",
-      "target": "firestore-sync",
-      "label": "Persist Snapshot",
-      "protocol": "Webhook",
-      "motionPrimitive": "pulse"
+      "motionPrimitive": "pulse",
+      "payloadSample": {
+        "txId": "tx_99",
+        "committed": true
+      }
     }
   ],
   "scenes": [
     {
       "id": "scene-1",
-      "title": "Executive Branching & Capacity Scheduling",
-      "narrative": "An executive scrubs to Month 14 and branches the roadmap; the DAG solver immediately re-allocates quarterly engineering capacity.",
+      "title": "1. End-to-End Request Flow (2D SVG)",
+      "narrative": "Requests enter through the Client Access Point, route through the Core Orchestrator API, and persist to the Primary State Store.",
       "activeNodes": [
-        "exec-scrubber",
-        "duckdb-store",
-        "dag-solver"
+        "client-entry",
+        "core-service",
+        "primary-store"
       ],
       "activeEdges": [
         {
-          "edgeId": "e-scrub-dag",
+          "edgeId": "e-client-core",
           "stepOrder": 1
         },
         {
-          "edgeId": "e-duck-dag",
+          "edgeId": "e-core-store",
           "stepOrder": 2
         }
       ],
@@ -393,35 +362,53 @@ html, body {
     },
     {
       "id": "scene-2",
-      "title": "Stochastic Simulation & Executive Memo Generation",
-      "narrative": "The Monte Carlo engine evaluates 25,000 paths with Poisson competitor preemption and compiles the 3-page Leave-the-Room Brief.",
+      "title": "2. Layered Plane Separation (2.5D Isometric)",
+      "narrative": "Orthographic 2.5D view separating Access Points, Service Orchestration, and Data Persistence planes.",
       "activeNodes": [
-        "dag-solver",
-        "monte-carlo",
-        "leave-brief",
-        "firestore-sync"
+        "client-entry",
+        "core-service",
+        "primary-store"
       ],
       "activeEdges": [
         {
-          "edgeId": "e-dag-mc",
+          "edgeId": "e-client-core",
           "stepOrder": 1
         },
         {
-          "edgeId": "e-mc-brief",
+          "edgeId": "e-core-store",
           "stepOrder": 2
-        },
-        {
-          "edgeId": "e-mc-fire",
-          "stepOrder": 3
         }
       ],
       "camera": {
         "viewMode": "2.5d-layered"
       }
+    },
+    {
+      "id": "scene-3",
+      "title": "3. Spatial Topology (3D WebGL / Three.js)",
+      "narrative": "Interactive 3D spatial view showing cross-plane conduits and volumetric component nodes.",
+      "activeNodes": [
+        "client-entry",
+        "core-service",
+        "primary-store"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-client-core",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-core-store",
+          "stepOrder": 2
+        }
+      ],
+      "camera": {
+        "viewMode": "3d-webgl"
+      }
     }
   ]
 }</script>
-  <script id="computed-layout" type="application/json">{"width":1428,"height":680,"planes":[{"id":"plane-experience","label":"Layer 1: Executive Experience & Briefs","elevation":140,"y":56,"height":158},{"id":"plane-orchestration","label":"Layer 2: Stochastic Solver & DAG Engine","elevation":70,"y":238,"height":158},{"id":"plane-data","label":"Layer 3: DuckDB & Cloud Persistence","elevation":0,"y":420,"height":158}],"nodes":{"exec-scrubber":{"id":"exec-scrubber","x":72,"y":94,"width":228,"height":82,"column":0,"planeIndex":0,"elevation":140},"leave-brief":{"id":"leave-brief","x":1068,"y":94,"width":228,"height":82,"column":3,"planeIndex":0,"elevation":140},"dag-solver":{"id":"dag-solver","x":404,"y":276,"width":228,"height":82,"column":1,"planeIndex":1,"elevation":70},"monte-carlo":{"id":"monte-carlo","x":736,"y":276,"width":228,"height":82,"column":2,"planeIndex":1,"elevation":70},"duckdb-store":{"id":"duckdb-store","x":72,"y":458,"width":228,"height":82,"column":0,"planeIndex":2,"elevation":0},"firestore-sync":{"id":"firestore-sync","x":1068,"y":458,"width":228,"height":82,"column":3,"planeIndex":2,"elevation":0}},"edges":{"e-scrub-dag":{"id":"e-scrub-dag","source":"exec-scrubber","target":"dag-solver","pathD":"M 300 135 C 354.08 135, 349.92 317, 404 317","labelX":352,"labelY":216,"isVerticalConduit":true},"e-duck-dag":{"id":"e-duck-dag","source":"duckdb-store","target":"dag-solver","pathD":"M 300 499 C 354.08 499, 349.92 317, 404 317","labelX":352,"labelY":398,"isVerticalConduit":true},"e-dag-mc":{"id":"e-dag-mc","source":"dag-solver","target":"monte-carlo","pathD":"M 632 317 C 686.08 317, 681.92 317, 736 317","labelX":684,"labelY":307,"isVerticalConduit":false},"e-mc-brief":{"id":"e-mc-brief","source":"monte-carlo","target":"leave-brief","pathD":"M 964 317 C 1018.08 317, 1013.92 135, 1068 135","labelX":1016,"labelY":216,"isVerticalConduit":true},"e-mc-fire":{"id":"e-mc-fire","source":"monte-carlo","target":"firestore-sync","pathD":"M 964 317 C 1018.08 317, 1013.92 499, 1068 499","labelX":1016,"labelY":398,"isVerticalConduit":true}},"unresolvedNodes":[],"unresolvedEdges":[]}</script>
+  <script id="computed-layout" type="application/json">{"width":1120,"height":680,"planes":[{"id":"plane-experience","label":"Layer 1: Access Points & Client Surfaces","elevation":140,"y":56,"height":158},{"id":"plane-orchestration","label":"Layer 2: APIs, Services & Agent Orchestration","elevation":70,"y":238,"height":158},{"id":"plane-data","label":"Layer 3: Data Stores, Queues & External Platforms","elevation":0,"y":420,"height":158}],"nodes":{"client-entry":{"id":"client-entry","x":72,"y":94,"width":228,"height":82,"column":0,"planeIndex":0,"elevation":140},"core-service":{"id":"core-service","x":404,"y":276,"width":228,"height":82,"column":1,"planeIndex":1,"elevation":70},"primary-store":{"id":"primary-store","x":736,"y":458,"width":228,"height":82,"column":2,"planeIndex":2,"elevation":0}},"edges":{"e-client-core":{"id":"e-client-core","source":"client-entry","target":"core-service","pathD":"M 300 135 C 354.08 135, 349.92 317, 404 317","labelX":352,"labelY":216,"isVerticalConduit":true},"e-core-store":{"id":"e-core-store","source":"core-service","target":"primary-store","pathD":"M 632 317 C 686.08 317, 681.92 499, 736 499","labelX":684,"labelY":398,"isVerticalConduit":true}},"unresolvedNodes":[],"unresolvedEdges":[]}</script>
   <script>(() => {
 // src/runtime/store.ts
 function createStore(spec, layout) {
@@ -433,10 +420,13 @@ function createStore(spec, layout) {
     viewMode: initialScene?.camera?.viewMode || spec.meta?.defaultView || "2d-flow",
     selectedItem: null,
     whiteboardMode: false,
+    pinMode: false,
     playing: true,
     panX: 30,
     panY: 20,
     zoom: 0.92,
+    orbitYaw: -0.48,
+    orbitPitch: 0.52,
     sketchOps: []
   };
   const listeners = new Set;
@@ -533,7 +523,7 @@ var KIND_ICONS = {
   document: "\uD83D\uDCC4",
   queue: "⇄"
 };
-function renderNodes(container, state, onSelectNode) {
+function renderNodes(container, state, onSelectNode, onDirectEditNode) {
   clearChildren(container);
   const scene = state.spec.scenes?.[state.sceneIndex];
   const activeSet = new Set(scene?.activeNodes || []);
@@ -545,6 +535,20 @@ function renderNodes(container, state, onSelectNode) {
     const isActive = activeSet.size === 0 || activeSet.has(node.id);
     const isSelected = state.selectedItem?.type === "node" && state.selectedItem?.id === node.id;
     const zLift = is25d ? (pos.elevation || 0) * 0.45 + 8 : 0;
+    const titleEl = el("div", { className: "node-title", title: "Double-click to edit label directly" }, [node.label]);
+    titleEl.addEventListener("dblclick", (e) => {
+      e.stopPropagation();
+      titleEl.contentEditable = "true";
+      titleEl.focus();
+    });
+    titleEl.addEventListener("blur", () => {
+      titleEl.contentEditable = "false";
+      const next = (titleEl.textContent || "").trim();
+      if (next && next !== node.label) {
+        node.label = next;
+        onDirectEditNode?.({ action: "UPDATE_NODE", nodeId: node.id, label: next });
+      }
+    });
     const card = el("div", {
       className: `node-card ${isActive ? "active" : "dimmed"} ${isSelected ? "selected" : ""}`,
       "data-node-id": node.id,
@@ -566,7 +570,7 @@ function renderNodes(container, state, onSelectNode) {
           node.metadata?.protocol || String(node.kind).toUpperCase()
         ])
       ]),
-      el("div", { className: "node-title" }, [node.label])
+      titleEl
     ]);
     container.appendChild(card);
   }
@@ -705,7 +709,7 @@ function renderNarrativeHud(hudEl, state, onSelectScene, onTogglePlay) {
 }
 
 // src/runtime/ui-inspector.ts
-function renderInspector(inspectorEl, state, onClose) {
+function renderInspector(inspectorEl, state, onClose, onDirectOp) {
   clearChildren(inspectorEl);
   const sel = state.selectedItem;
   if (!sel) {
@@ -713,20 +717,39 @@ function renderInspector(inspectorEl, state, onClose) {
     return;
   }
   inspectorEl.classList.add("open");
-  const closeBtn = el("button", { className: "btn", style: { float: "right" }, onClick: onClose }, ["✕ Close"]);
-  inspectorEl.appendChild(closeBtn);
+  inspectorEl.appendChild(el("button", { className: "btn", style: { float: "right" }, onClick: onClose }, ["✕ Close"]));
   if (sel.type === "node") {
     const node = state.spec.nodes?.find((n) => n.id === sel.id);
     if (!node)
       return;
     const preview = node.metadata?.artifactPreview;
     const formattedPreview = preview ? typeof preview.content === "string" ? preview.content : JSON.stringify(preview.content, null, 2) : "no data";
+    const noteInput = el("input", {
+      className: "inspector-input",
+      placeholder: "Annotate or request change on this node...",
+      type: "text"
+    });
+    const addNoteBtn = el("button", {
+      className: "btn btn-accent",
+      style: { marginTop: "6px", width: "100%" },
+      onClick: () => {
+        const val = noteInput.value.trim();
+        if (!val)
+          return;
+        node.summary = `${node.summary} — [Note: ${val}]`;
+        onDirectOp?.({ action: "ANNOTATE_NODE", nodeId: node.id, note: val });
+        noteInput.value = "";
+      }
+    }, ["+ Queue Annotation for Agent Refactor"]);
     inspectorEl.appendChild(el("div", {}, [
       el("div", { className: "scene-kicker" }, [`${node.kind.toUpperCase()} · ${node.planeId}`]),
       el("h3", { style: { marginTop: "6px", fontSize: "16px" } }, [node.label]),
       el("p", { style: { marginTop: "8px", fontSize: "13px", color: "var(--ink-secondary)" } }, [
         node.summary
       ]),
+      el("div", { className: "scene-kicker", style: { marginTop: "14px" } }, ["DIRECT HTML ANNOTATION"]),
+      noteInput,
+      addNoteBtn,
       el("div", { className: "scene-kicker", style: { marginTop: "16px" } }, [
         `ARTIFACT / PAYLOAD PREVIEW (${preview?.type || "NONE"})`
       ]),
@@ -741,9 +764,7 @@ function renderInspector(inspectorEl, state, onClose) {
       el("div", { className: "scene-kicker" }, [
         `EDGE · ${edge.protocol || "FLOW"} · ${edge.motionPrimitive.toUpperCase()}`
       ]),
-      el("h3", { style: { marginTop: "6px", fontSize: "15px" } }, [
-        `${edge.source} → ${edge.target}`
-      ]),
+      el("h3", { style: { marginTop: "6px", fontSize: "15px" } }, [`${edge.source} → ${edge.target}`]),
       el("pre", { className: "inspector-pre" }, [sample])
     ]));
   }
@@ -815,71 +836,266 @@ function attachWhiteboard(svgOverlay, getState, onNewOperation) {
   });
 }
 
+// src/runtime/renderer-3d.ts
+var KIND_HEX = {
+  actor: "#6D28D9",
+  platform: "#1D4ED8",
+  service: "#0F766E",
+  agent: "#EA580C",
+  database: "#15803D",
+  document: "#B45309",
+  queue: "#BE185D"
+};
+function start3DRenderer(canvas, getState, setState) {
+  let dragging = false, lx = 0, ly = 0;
+  let projectedBoxes = [];
+  canvas.addEventListener("pointerdown", (e) => {
+    dragging = true;
+    lx = e.clientX;
+    ly = e.clientY;
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!dragging || getState().viewMode !== "3d-webgl")
+      return;
+    const s = getState();
+    setState({ orbitYaw: s.orbitYaw + (e.clientX - lx) * 0.007, orbitPitch: Math.max(0.15, Math.min(1.25, s.orbitPitch + (e.clientY - ly) * 0.007)) });
+    lx = e.clientX;
+    ly = e.clientY;
+  });
+  window.addEventListener("pointerup", (e) => {
+    if (dragging && Math.hypot(e.clientX - lx, e.clientY - ly) < 4 && getState().viewMode === "3d-webgl") {
+      const rect = canvas.getBoundingClientRect();
+      const hit = projectedBoxes.find((b) => Math.hypot(e.clientX - rect.left - b.x, e.clientY - rect.top - b.y) <= b.r);
+      if (hit)
+        setState({ selectedItem: { type: "node", id: hit.id } });
+    }
+    dragging = false;
+  });
+  const project = (wx, wy, wz, cx, cy, s) => {
+    const cyaw = Math.cos(s.orbitYaw), syaw = Math.sin(s.orbitYaw), cp = Math.cos(s.orbitPitch), sp = Math.sin(s.orbitPitch);
+    const rx = wx * cyaw - wy * syaw, ry = wx * syaw + wy * cyaw;
+    const py = ry * cp - wz * sp, pz = ry * sp + wz * cp + 950;
+    const fov = 820 * s.zoom / Math.max(220, pz);
+    return { x: cx + rx * fov, y: cy + py * fov, scale: fov };
+  };
+  const drawFrame = (now) => {
+    const s = getState();
+    const ctx = s.viewMode === "3d-webgl" ? canvas.getContext("2d") : null;
+    if (ctx) {
+      const w = canvas.width = canvas.clientWidth || 1100, h = canvas.height = canvas.clientHeight || 680;
+      ctx.clearRect(0, 0, w, h);
+      const cx = w / 2, cy = h / 2 + 20, lw = s.layout.width || 1120, lh = s.layout.height || 680;
+      for (const pl of s.layout.planes || []) {
+        const z = (pl.elevation - 70) * 1.65;
+        const c1 = project(-lw * 0.42, pl.y - lh / 2, z, cx, cy, s), c2 = project(lw * 0.42, pl.y - lh / 2, z, cx, cy, s);
+        const c3 = project(lw * 0.42, pl.y + pl.height - lh / 2, z, cx, cy, s), c4 = project(-lw * 0.42, pl.y + pl.height - lh / 2, z, cx, cy, s);
+        ctx.fillStyle = "rgba(255,255,255,0.58)";
+        ctx.strokeStyle = "#C8C4B8";
+        ctx.lineWidth = 1.2;
+        ctx.beginPath();
+        ctx.moveTo(c1.x, c1.y);
+        ctx.lineTo(c2.x, c2.y);
+        ctx.lineTo(c3.x, c3.y);
+        ctx.lineTo(c4.x, c4.y);
+        ctx.closePath();
+        ctx.fill();
+        ctx.stroke();
+        ctx.fillStyle = "#686763";
+        ctx.font = "600 10px monospace";
+        ctx.fillText(`${pl.label} [Z:${pl.elevation}]`, c1.x + 12, c1.y + 16);
+      }
+      const activeEdges = new Set((s.spec.scenes?.[s.sceneIndex]?.activeEdges || []).map((a) => a.edgeId));
+      for (const edge of s.spec.edges || []) {
+        const sn = s.layout.nodes?.[edge.source], tn = s.layout.nodes?.[edge.target];
+        if (!sn || !tn)
+          continue;
+        const p1 = project(sn.x + sn.width / 2 - lw / 2, sn.y + sn.height / 2 - lh / 2, (sn.elevation - 70) * 1.65 + 18, cx, cy, s);
+        const p2 = project(tn.x + tn.width / 2 - lw / 2, tn.y + tn.height / 2 - lh / 2, (tn.elevation - 70) * 1.65 + 18, cx, cy, s);
+        const isAct = activeEdges.has(edge.id), mx = (p1.x + p2.x) / 2, my = Math.min(p1.y, p2.y) - 34;
+        ctx.strokeStyle = isAct ? "#1D4ED8" : "rgba(158,157,153,0.35)";
+        ctx.lineWidth = isAct ? 2.6 : 1.2;
+        ctx.beginPath();
+        ctx.moveTo(p1.x, p1.y);
+        ctx.quadraticCurveTo(mx, my, p2.x, p2.y);
+        ctx.stroke();
+        if (isAct && s.playing) {
+          const t = now % 1800 / 1800, qx = (1 - t) * (1 - t) * p1.x + 2 * (1 - t) * t * mx + t * t * p2.x, qy = (1 - t) * (1 - t) * p1.y + 2 * (1 - t) * t * my + t * t * p2.y;
+          ctx.fillStyle = "#EA580C";
+          ctx.beginPath();
+          ctx.arc(qx, qy, 5.5, 0, Math.PI * 2);
+          ctx.fill();
+        }
+      }
+      projectedBoxes = [];
+      for (const node of s.spec.nodes || []) {
+        const pos = s.layout.nodes?.[node.id];
+        if (!pos)
+          continue;
+        const top = project(pos.x + pos.width / 2 - lw / 2, pos.y + pos.height / 2 - lh / 2, (pos.elevation - 70) * 1.65 + 32, cx, cy, s);
+        const bw = 96 * top.scale, bh = 36 * top.scale, color = KIND_HEX[node.kind] || "#1D4ED8";
+        ctx.fillStyle = "#FFFFFF";
+        ctx.strokeStyle = color;
+        ctx.lineWidth = 2;
+        ctx.fillRect(top.x - bw / 2, top.y - bh / 2, bw, bh);
+        ctx.strokeRect(top.x - bw / 2, top.y - bh / 2, bw, bh);
+        ctx.fillStyle = "#141413";
+        ctx.font = `600 ${Math.max(10, Math.round(12 * top.scale))}px sans-serif`;
+        ctx.fillText(node.label.slice(0, 22), top.x - bw / 2 + 8, top.y + 4);
+        projectedBoxes.push({ id: node.id, x: top.x, y: top.y, r: Math.max(bw, bh) * 0.55 });
+      }
+    }
+    requestAnimationFrame(drawFrame);
+  };
+  requestAnimationFrame(drawFrame);
+}
+
+// src/runtime/direct-edit.ts
+function renderPins(container, state) {
+  container.innerHTML = "";
+  for (const pin of state.spec.annotations || []) {
+    container.appendChild(el("div", { className: "pin-badge", style: { left: `${pin.x}px`, top: `${pin.y}px` } }, [
+      el("span", { className: "pin-icon" }, ["\uD83D\uDCCC"]),
+      el("span", { className: "pin-text" }, [pin.text])
+    ]));
+  }
+}
+function attachDirectHtmlInteractions(viewportEl, nodesEl, getState, setState, recordOp) {
+  let dragNodeId = null, startMouse = { x: 0, y: 0 }, startPos = { x: 0, y: 0 }, moved = false;
+  nodesEl.addEventListener("pointerdown", (e) => {
+    const target = e.target;
+    if (target.isContentEditable)
+      return;
+    const nodeId = target.closest(".node-card")?.getAttribute("data-node-id");
+    const s = getState();
+    const pos = nodeId ? s.layout.nodes?.[nodeId] : null;
+    if (!nodeId || !pos || s.whiteboardMode || s.pinMode)
+      return;
+    dragNodeId = nodeId;
+    moved = false;
+    startMouse = { x: e.clientX, y: e.clientY };
+    startPos = { x: pos.x, y: pos.y };
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!dragNodeId)
+      return;
+    const s = getState();
+    const dx = (e.clientX - startMouse.x) / (s.zoom || 1), dy = (e.clientY - startMouse.y) / (s.zoom || 1);
+    if (Math.hypot(dx, dy) > 5)
+      moved = true;
+    const pos = s.layout.nodes?.[dragNodeId];
+    if (moved && pos) {
+      pos.x = Math.round(startPos.x + dx);
+      pos.y = Math.round(startPos.y + dy);
+      const card = nodesEl.querySelector(`[data-node-id="${dragNodeId}"]`);
+      if (card) {
+        card.style.left = `${pos.x}px`;
+        card.style.top = `${pos.y}px`;
+      }
+    }
+  });
+  window.addEventListener("pointerup", () => {
+    if (dragNodeId && moved) {
+      const s = getState(), pos = s.layout.nodes?.[dragNodeId];
+      if (pos) {
+        const plane = s.layout.planes?.find((p) => pos.y >= p.y && pos.y <= p.y + p.height);
+        recordOp({ action: "MOVE_NODE", nodeId: dragNodeId, x: pos.x, y: pos.y, planeId: plane?.id });
+      }
+    }
+    dragNodeId = null;
+  });
+  document.getElementById("btn-add-node")?.addEventListener("click", () => {
+    const s = getState();
+    const label = window.prompt("New Component / Node Name:", "Auth & Policy Service") || "";
+    if (!label.trim())
+      return;
+    const planeId = s.spec.planes?.[1]?.id || s.spec.planes?.[0]?.id || "plane-orchestration";
+    recordOp({ action: "ADD_NODE", label: label.trim(), planeId });
+    window.parent?.postMessage({ type: "LIVING_ARCH_REFACTOR_REQUEST", spec: s.spec, operations: getState().sketchOps }, "*");
+  });
+  viewportEl.addEventListener("click", (e) => {
+    const s = getState();
+    if (!s.pinMode)
+      return;
+    const rect = viewportEl.getBoundingClientRect();
+    const x = Math.round((e.clientX - rect.left - s.panX) / (s.zoom || 1)), y = Math.round((e.clientY - rect.top - s.panY) / (s.zoom || 1));
+    const text = window.prompt("Annotation / Change Instruction for Agent:", "Add OAuth2 mTLS gateway here") || "";
+    if (!text.trim())
+      return;
+    (s.spec.annotations = s.spec.annotations || []).push({ id: `pin-${Date.now()}`, x, y, text: text.trim() });
+    recordOp({ action: "ADD_PIN_NOTE", x, y, text: text.trim() });
+    setState({ pinMode: false });
+  });
+}
+
 // src/runtime/app.ts
 function bootLivingArchitectureCanvas() {
   const specEl = document.getElementById("architecture-spec");
   const layoutEl = document.getElementById("computed-layout");
   if (!specEl || !layoutEl)
     return;
-  const spec = JSON.parse(specEl.textContent || "{}");
-  const layout = JSON.parse(layoutEl.textContent || "{}");
-  const store = createStore(spec, layout);
+  const store = createStore(JSON.parse(specEl.textContent || "{}"), JSON.parse(layoutEl.textContent || "{}"));
   const worldEl = document.getElementById("world");
   const planesEl = document.getElementById("planes-layer");
   const nodesEl = document.getElementById("nodes-layer");
+  const pinsEl = document.getElementById("pins-layer");
   const edgesSvg = document.getElementById("edges-svg");
   const wbSvg = document.getElementById("whiteboard-svg");
+  const webglCanvas = document.getElementById("webgl-canvas");
   const hudEl = document.getElementById("hud-bar");
   const inspectorEl = document.getElementById("inspector");
   const viewportEl = document.getElementById("viewport");
+  const recordOp = (op) => {
+    const s = store.getState();
+    const nextOps = [...s.sketchOps, op];
+    store.setState({ sketchOps: nextOps });
+    window.parent?.postMessage({ type: "LIVING_ARCH_OP_QUEUED", op, operations: nextOps, spec: s.spec }, "*");
+  };
   const syncUI = () => {
     const s = store.getState();
+    const is3d = s.viewMode === "3d-webgl";
+    worldEl.style.display = is3d ? "none" : "block";
+    if (webglCanvas)
+      webglCanvas.style.display = is3d ? "block" : "none";
     wbSvg.setAttribute("width", String(s.layout.width));
     wbSvg.setAttribute("height", String(s.layout.height));
     wbSvg.classList.toggle("active", s.whiteboardMode);
-    viewportEl.classList.toggle("whiteboard-active", s.whiteboardMode);
+    viewportEl.classList.toggle("whiteboard-active", s.whiteboardMode || s.pinMode);
     applyCameraTransform(worldEl, s);
     renderPlanes(planesEl, s);
     renderEdges(edgesSvg, s, (edgeId) => store.setState({ selectedItem: { type: "edge", id: edgeId } }));
-    renderNodes(nodesEl, s, (nodeId) => store.setState({ selectedItem: { type: "node", id: nodeId } }));
-    renderNarrativeHud(hudEl, s, (sceneIndex) => {
-      const nextScene = s.spec.scenes?.[sceneIndex];
-      store.setState({
-        sceneIndex,
-        viewMode: nextScene?.camera?.viewMode || s.viewMode
-      });
-    }, () => store.setState({ playing: !s.playing }));
-    renderInspector(inspectorEl, s, () => store.setState({ selectedItem: null }));
-    const btn25d = document.getElementById("btn-toggle-25d");
-    if (btn25d)
-      btn25d.classList.toggle("active", s.viewMode === "2.5d-layered");
-    const btnWb = document.getElementById("btn-toggle-wb");
-    if (btnWb)
-      btnWb.classList.toggle("active", s.whiteboardMode);
+    renderNodes(nodesEl, s, (nodeId) => store.setState({ selectedItem: { type: "node", id: nodeId } }), recordOp);
+    if (pinsEl)
+      renderPins(pinsEl, s);
+    renderNarrativeHud(hudEl, s, (idx) => store.setState({ sceneIndex: idx, viewMode: s.spec.scenes?.[idx]?.camera?.viewMode || s.viewMode }), () => store.setState({ playing: !s.playing }));
+    renderInspector(inspectorEl, s, () => store.setState({ selectedItem: null }), recordOp);
+    document.getElementById("btn-view-2d")?.classList.toggle("active", s.viewMode === "2d-flow");
+    document.getElementById("btn-toggle-25d")?.classList.toggle("active", s.viewMode === "2.5d-layered");
+    document.getElementById("btn-view-3d")?.classList.toggle("active", s.viewMode === "3d-webgl");
+    document.getElementById("btn-toggle-wb")?.classList.toggle("active", s.whiteboardMode);
+    document.getElementById("btn-pin-note")?.classList.toggle("active", s.pinMode);
     const btnDiff = document.getElementById("btn-export-diff");
     if (btnDiff)
       btnDiff.textContent = `Copy Diff (${s.sketchOps.length})`;
   };
   store.subscribe(syncUI);
-  attachWhiteboard(wbSvg, store.getState, (op) => {
-    const s = store.getState();
-    store.setState({ sketchOps: [...s.sketchOps, op] });
-  });
-  document.getElementById("btn-toggle-25d")?.addEventListener("click", () => {
-    const s = store.getState();
-    store.setState({ viewMode: s.viewMode === "2d-flow" ? "2.5d-layered" : "2d-flow" });
-  });
-  document.getElementById("btn-toggle-wb")?.addEventListener("click", () => {
-    const s = store.getState();
-    store.setState({ whiteboardMode: !s.whiteboardMode });
-  });
+  attachWhiteboard(wbSvg, store.getState, recordOp);
+  attachDirectHtmlInteractions(viewportEl, nodesEl, store.getState, store.setState, recordOp);
+  if (webglCanvas)
+    start3DRenderer(webglCanvas, store.getState, store.setState);
+  document.getElementById("btn-view-2d")?.addEventListener("click", () => store.setState({ viewMode: "2d-flow" }));
+  document.getElementById("btn-toggle-25d")?.addEventListener("click", () => store.setState({ viewMode: store.getState().viewMode === "2.5d-layered" ? "2d-flow" : "2.5d-layered" }));
+  document.getElementById("btn-view-3d")?.addEventListener("click", () => store.setState({ viewMode: "3d-webgl" }));
+  document.getElementById("btn-toggle-wb")?.addEventListener("click", () => store.setState({ whiteboardMode: !store.getState().whiteboardMode, pinMode: false }));
+  document.getElementById("btn-pin-note")?.addEventListener("click", () => store.setState({ pinMode: !store.getState().pinMode, whiteboardMode: false }));
   document.getElementById("btn-export-diff")?.addEventListener("click", () => {
-    const s = store.getState();
-    const payload = JSON.stringify({ timestamp: new Date().toISOString(), operations: s.sketchOps }, null, 2);
+    const payload = JSON.stringify({ timestamp: new Date().toISOString(), operations: store.getState().sketchOps }, null, 2);
     navigator.clipboard?.writeText(payload);
-    store.setState({ selectedItem: null });
     inspectorEl.classList.add("open");
-    inspectorEl.innerHTML = `<div class="scene-kicker">WHITEBOARD DIFF EXPORT</div><pre class="inspector-pre">${payload}</pre>`;
+    inspectorEl.innerHTML = `<div class="scene-kicker">WHITEBOARD & HTML DIFF EXPORT</div><pre class="inspector-pre">${payload}</pre>`;
+  });
+  document.getElementById("btn-refactor-agent")?.addEventListener("click", () => {
+    const s = store.getState();
+    window.parent?.postMessage({ type: "LIVING_ARCH_REFACTOR_REQUEST", spec: s.spec, operations: s.sketchOps }, "*");
   });
   syncUI();
   startPacketAnimator(edgesSvg, store.getState);

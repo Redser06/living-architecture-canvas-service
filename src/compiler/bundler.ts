@@ -67,8 +67,8 @@ export async function compileLivingArchitectureHtml(spec: LivingArchitectureSpec
   const html = HTML_TEMPLATE.replace(/\{\{TITLE\}\}/g, spec.meta.title)
     .replace(/\{\{VERSION\}\}/g, spec.meta.version || '1.0')
     .replace('{{STYLES}}', cachedCss)
-    .replace('{{SPEC_JSON}}', JSON.stringify(spec, null, 2))
-    .replace('{{LAYOUT_JSON}}', JSON.stringify(layout))
+    .replace('{{SPEC_JSON}}', () => JSON.stringify(spec, null, 2).replace(/<\//g, '<\\/'))
+    .replace('{{LAYOUT_JSON}}', () => JSON.stringify(layout).replace(/<\//g, '<\\/'))
     .replace('{{RUNTIME_JS}}', () => runtimeJs);
 
   return { html, layout, validation };

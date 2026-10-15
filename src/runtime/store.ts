@@ -1,15 +1,18 @@
-// Chunk 2: src/runtime/store.ts (<= 60 lines)
+// Chunk 2: src/runtime/store.ts (<= 65 lines)
 export interface CanvasRuntimeState {
   spec: any;
   layout: any;
   sceneIndex: number;
-  viewMode: '2d-flow' | '2.5d-layered';
+  viewMode: '2d-flow' | '2.5d-layered' | '3d-webgl';
   selectedItem: { type: 'node' | 'edge'; id: string } | null;
   whiteboardMode: boolean;
+  pinMode: boolean;
   playing: boolean;
   panX: number;
   panY: number;
   zoom: number;
+  orbitYaw: number;
+  orbitPitch: number;
   sketchOps: any[];
 }
 
@@ -22,10 +25,13 @@ export function createStore(spec: any, layout: any) {
     viewMode: initialScene?.camera?.viewMode || spec.meta?.defaultView || '2d-flow',
     selectedItem: null,
     whiteboardMode: false,
+    pinMode: false,
     playing: true,
     panX: 30,
     panY: 20,
     zoom: 0.92,
+    orbitYaw: -0.48,
+    orbitPitch: 0.52,
     sketchOps: [],
   };
 

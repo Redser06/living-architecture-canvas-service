@@ -1,4 +1,4 @@
-// Chunk 11: src/compiler/template.ts (<= 40 lines)
+// Chunk 11: src/compiler/template.ts (<= 55 lines)
 export const HTML_TEMPLATE = `<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -11,12 +11,17 @@ export const HTML_TEMPLATE = `<!DOCTYPE html>
   <header id="topbar">
     <div class="brand-block">
       <span class="brand-title">{{TITLE}}</span>
-      <span class="brand-meta">v{{VERSION}} · EDITORIAL ARCHITECTURAL</span>
+      <span class="brand-meta">v{{VERSION}} · EDITORIAL ARCHITECTURAL · DIRECT-EDIT ENABLED</span>
     </div>
     <div class="toolbar-group">
+      <button id="btn-view-2d" class="btn">2D SVG</button>
       <button id="btn-toggle-25d" class="btn">2.5D Isometric Stack</button>
-      <button id="btn-toggle-wb" class="btn">✎ Whiteboard</button>
+      <button id="btn-view-3d" class="btn">3D WebGL / Three.js</button>
+      <button id="btn-add-node" class="btn">+ Add Node</button>
+      <button id="btn-toggle-wb" class="btn">✎ Connect / Draw</button>
+      <button id="btn-pin-note" class="btn">📌 Annotate</button>
       <button id="btn-export-diff" class="btn">Copy Diff (0)</button>
+      <button id="btn-refactor-agent" class="btn btn-accent">✨ Refactor HTML</button>
     </div>
   </header>
 
@@ -25,8 +30,11 @@ export const HTML_TEMPLATE = `<!DOCTYPE html>
       <div id="planes-layer"></div>
       <svg id="edges-svg"></svg>
       <div id="nodes-layer"></div>
+      <div id="pins-layer"></div>
       <svg id="whiteboard-svg"></svg>
     </div>
+    <canvas id="webgl-canvas"></canvas>
+    <div id="direct-edit-hint">Double-click node text to edit · Drag node to move · + Add Node · ✎ Connect · 📌 Annotate → ✨ Refactor HTML</div>
   </main>
 
   <aside id="inspector"></aside>

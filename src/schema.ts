@@ -1,4 +1,4 @@
-export type ViewMode = '2d-flow' | '2.5d-layered';
+export type ViewMode = '2d-flow' | '2.5d-layered' | '3d-webgl';
 export type NodeKind = 'platform' | 'service' | 'agent' | 'database' | 'document' | 'actor' | 'queue';
 export type EdgeProtocol = 'REST' | 'gRPC' | 'Webhook' | 'Event' | 'Document-Link' | 'SQL';
 export type MotionPrimitive = 'flow' | 'pulse' | 'fork' | 'join' | 'error';
@@ -6,7 +6,7 @@ export type MotionPrimitive = 'flow' | 'pulse' | 'fork' | 'join' | 'error';
 export interface ArchitecturePlane {
   id: string;
   label: string;
-  elevation: number; // Z-index / Y-height in 2.5D orthographic space
+  elevation: number; // Z-index / Y-height in 2.5D orthographic & 3D WebGL space
 }
 
 export interface ArtifactPreview {
@@ -21,10 +21,13 @@ export interface ArchitectureNode {
   planeId: string;
   parentGroupId?: string;
   summary: string;
+  positionOverride?: { x: number; y: number };
+  annotations?: string[];
   metadata: {
     techStack?: string[];
     protocol?: string;
     sla?: string;
+    accessPoint?: string;
     artifactPreview?: ArtifactPreview;
   };
 }
@@ -57,6 +60,16 @@ export interface ArchitectureScene {
   };
 }
 
+export interface CanvasPinNote {
+  id: string;
+  x: number;
+  y: number;
+  planeId?: string;
+  nearNodeId?: string;
+  text: string;
+  author?: string;
+}
+
 export interface LivingArchitectureSpec {
   meta: {
     title: string;
@@ -68,6 +81,7 @@ export interface LivingArchitectureSpec {
   nodes: ArchitectureNode[];
   edges: ArchitectureEdge[];
   scenes: ArchitectureScene[];
+  annotations?: CanvasPinNote[];
 }
 
 export type WhiteboardAction =
@@ -102,6 +116,30 @@ export type WhiteboardAction =
       action: 'ANNOTATE_NODE';
       nodeId: string;
       note: string;
+    }
+  | {
+      action: 'UPDATE_NODE';
+      nodeId: string;
+      label?: string;
+      summary?: string;
+      protocol?: string;
+      kind?: NodeKind;
+    }
+  | {
+      action: 'MOVE_NODE';
+      nodeId: string;
+      x: number;
+      y: number;
+      planeId?: string;
+    }
+  | {
+      action: 'ADD_PIN_NOTE';
+      id?: string;
+      x: number;
+      y: number;
+      planeId?: string;
+      nearNodeId?: string;
+      text: string;
     };
 
 export interface WhiteboardDiffPayload {
