@@ -1,0 +1,16 @@
+{
+  "name": "living-architecture-canvas",
+  "version": "1.0.0",
+  "description": "Service and compiler that turns natural-language prompts, graph specs, and whiteboard diffs into self-contained interactive HTML architecture artifacts.",
+  "type": "module",
+  "scripts": {
+    "start": "bun run src/server.ts",
+    "dev": "bun --watch run src/server.ts",
+    "cli": "bun run src/cli.ts",
+    "build:demos": "bun run src/build-demos.ts",
+    "test": "bun test"
+  },
+  "devDependencies": {
+    "@types/bun": "latest"
+  }
+}

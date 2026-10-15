@@ -1,0 +1,891 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Stephen Strange: Market Horizon — Living Architecture Canvas</title>
+  <style>:root {
+  --bg-canvas: #F8F7F4;
+  --grid-dot: #E6E4DD;
+  --surface-card: #FFFFFF;
+  --border-subtle: #E2E0D8;
+  --border-strong: #C8C4B8;
+  --ink-primary: #141413;
+  --ink-secondary: #686763;
+  --ink-muted: #9E9D99;
+  --accent-flow: #1D4ED8;
+  --accent-pulse: #EA580C;
+  --accent-storage: #15803D;
+  --accent-actor: #6D28D9;
+  --accent-error: #B91C1C;
+  --shadow-card: 0 2px 6px rgba(20, 20, 19, 0.04);
+  --shadow-elevated: 0 12px 28px rgba(20, 20, 19, 0.08);
+  --font-sans: "Inter", "Plus Jakarta Sans", -apple-system, BlinkMacSystemFont, sans-serif;
+  --font-mono: "JetBrains Mono", "Geist Mono", ui-monospace, SFMono-Regular, monospace;
+}
+
+* { box-sizing: border-box; margin: 0; padding: 0; }
+html, body {
+  width: 100%; height: 100%; overflow: hidden;
+  background-color: var(--bg-canvas);
+  background-image: radial-gradient(var(--grid-dot) 1.25px, transparent 1.25px);
+  background-size: 20px 20px;
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  -webkit-font-smoothing: antialiased;
+}
+
+#topbar {
+  position: fixed; top: 0; left: 0; right: 0; height: 58px;
+  background: rgba(248, 247, 244, 0.92);
+  backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 24px; z-index: 40;
+}
+.brand-block { display: flex; align-items: baseline; gap: 12px; }
+.brand-title { font-size: 15px; font-weight: 650; letter-spacing: -0.02em; }
+.brand-meta { font-family: var(--font-mono); font-size: 11px; color: var(--ink-secondary); text-transform: uppercase; }
+.toolbar-group { display: flex; align-items: center; gap: 8px; }
+
+.btn {
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  color: var(--ink-primary);
+  font-family: var(--font-sans);
+  font-size: 12px; font-weight: 550;
+  padding: 6px 12px; border-radius: 6px;
+  cursor: pointer; transition: all 0.15s ease;
+  box-shadow: var(--shadow-card);
+}
+.btn:hover { border-color: var(--ink-secondary); }
+.btn.active { background: var(--ink-primary); color: #FFF; border-color: var(--ink-primary); }
+.btn-accent { background: var(--accent-flow); color: #FFF; border-color: var(--accent-flow); }
+
+#viewport {
+  position: fixed; inset: 58px 0 76px 0;
+  overflow: hidden; cursor: grab;
+  perspective: 1400px;
+}
+#viewport.whiteboard-active { cursor: crosshair; }
+
+#world {
+  position: absolute; top: 0; left: 0;
+  transform-origin: 50% 50%;
+  transition: transform 0.65s cubic-bezier(0.22, 0.61, 0.21, 1);
+  transform-style: preserve-3d;
+}
+#world.layered-25d {
+  transform: translate3d(var(--cam-x, 40px), var(--cam-y, 20px), 0) scale(var(--cam-scale, 0.85)) rotateX(24deg) rotateZ(-8deg);
+}
+
+.plane-band {
+  position: absolute; left: 28px; right: 28px;
+  border: 1px dashed var(--border-strong);
+  background: rgba(255, 255, 255, 0.42);
+  border-radius: 10px;
+  pointer-events: none;
+  transition: transform 0.6s ease, box-shadow 0.6s ease;
+}
+#world.layered-25d .plane-band {
+  background: rgba(255, 255, 255, 0.72);
+  box-shadow: 0 18px 36px rgba(20, 20, 19, 0.06);
+}
+.plane-label {
+  position: absolute; top: 10px; left: 14px;
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  letter-spacing: 0.08em; text-transform: uppercase;
+  color: var(--ink-secondary);
+}
+
+#edges-svg, #whiteboard-svg {
+  position: absolute; top: 0; left: 0;
+  overflow: visible; pointer-events: none;
+}
+#edges-svg path.edge-hit {
+  pointer-events: stroke; stroke: transparent; stroke-width: 14px; fill: none; cursor: pointer;
+}
+#whiteboard-svg.active { pointer-events: all; }
+
+.edge-path {
+  fill: none; stroke: var(--border-strong); stroke-width: 1.75px;
+  transition: opacity 0.35s ease, stroke 0.35s ease;
+}
+.edge-path.dimmed { opacity: 0.22; }
+.edge-path.active-flow { stroke: var(--accent-flow); stroke-width: 2.2px; stroke-dasharray: 7 5; animation: dashFlow 0.9s linear infinite; }
+.edge-path.active-pulse { stroke: var(--accent-pulse); stroke-width: 2.2px; }
+.edge-path.active-fork, .edge-path.active-join { stroke: var(--accent-storage); stroke-width: 2.2px; }
+.edge-path.active-error { stroke: var(--accent-error); stroke-width: 2.2px; stroke-dasharray: 5 4; }
+
+@keyframes dashFlow { to { stroke-dashoffset: -24; } }
+
+.node-card {
+  position: absolute;
+  background: var(--surface-card);
+  border: 1px solid var(--border-subtle);
+  border-radius: 8px;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-card);
+  cursor: pointer;
+  transition: opacity 0.35s ease, transform 0.45s ease, border-color 0.25s ease, box-shadow 0.25s ease;
+  display: flex; flex-direction: column; justify-content: space-between;
+}
+.node-card:hover { border-color: var(--ink-secondary); box-shadow: var(--shadow-elevated); }
+.node-card.dimmed { opacity: 0.28; }
+.node-card.active { border-color: var(--accent-flow); box-shadow: 0 0 0 2px rgba(29, 78, 216, 0.12), var(--shadow-card); }
+.node-top { display: flex; align-items: center; justify-content: space-between; gap: 6px; }
+.node-kind-icon { font-size: 13px; }
+.node-badge {
+  font-family: var(--font-mono); font-size: 10px; font-weight: 600;
+  text-transform: uppercase; padding: 2px 6px; border-radius: 4px;
+  background: #F2F0E8; color: var(--ink-secondary);
+}
+.node-title { font-size: 13.5px; font-weight: 600; letter-spacing: -0.02em; color: var(--ink-primary); margin-top: 4px; }
+.node-proto { font-family: var(--font-mono); font-size: 10px; color: var(--ink-muted); }
+
+#hud-bar {
+  position: fixed; bottom: 0; left: 0; right: 0; height: 76px;
+  background: var(--surface-card);
+  border-top: 1px solid var(--border-subtle);
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 0 28px; z-index: 40;
+}
+.narrative-box { max-width: 660px; }
+.scene-kicker { font-family: var(--font-mono); font-size: 10.5px; text-transform: uppercase; color: var(--accent-flow); font-weight: 600; }
+.scene-narrative { font-size: 13.5px; color: var(--ink-primary); margin-top: 2px; line-height: 1.38; }
+
+#inspector {
+  position: fixed; top: 58px; right: 0; bottom: 76px; width: 380px;
+  background: var(--surface-card);
+  border-left: 1px solid var(--border-subtle);
+  box-shadow: var(--shadow-elevated);
+  padding: 20px; overflow-y: auto;
+  transform: translateX(100%); transition: transform 0.25s ease; z-index: 45;
+}
+#inspector.open { transform: translateX(0); }
+.inspector-pre {
+  margin-top: 10px; padding: 12px; border-radius: 6px;
+  background: #F8F7F4; border: 1px solid var(--border-subtle);
+  font-family: var(--font-mono); font-size: 11.5px; white-space: pre-wrap; overflow-x: auto;
+}
+</style>
+</head>
+<body>
+  <header id="topbar">
+    <div class="brand-block">
+      <span class="brand-title">Stephen Strange: Market Horizon</span>
+      <span class="brand-meta">v3.0 · EDITORIAL ARCHITECTURAL</span>
+    </div>
+    <div class="toolbar-group">
+      <button id="btn-toggle-25d" class="btn">2.5D Isometric Stack</button>
+      <button id="btn-toggle-wb" class="btn">✎ Whiteboard</button>
+      <button id="btn-export-diff" class="btn">Copy Diff (0)</button>
+    </div>
+  </header>
+
+  <main id="viewport">
+    <div id="world">
+      <div id="planes-layer"></div>
+      <svg id="edges-svg"></svg>
+      <div id="nodes-layer"></div>
+      <svg id="whiteboard-svg"></svg>
+    </div>
+  </main>
+
+  <aside id="inspector"></aside>
+  <footer id="hud-bar"></footer>
+
+  <script id="architecture-spec" type="application/json">{
+  "meta": {
+    "title": "Stephen Strange: Market Horizon",
+    "version": "3.0",
+    "defaultView": "2d-flow"
+  },
+  "planes": [
+    {
+      "id": "plane-experience",
+      "label": "Layer 1: Executive Experience & Briefs",
+      "elevation": 140
+    },
+    {
+      "id": "plane-orchestration",
+      "label": "Layer 2: Stochastic Solver & DAG Engine",
+      "elevation": 70
+    },
+    {
+      "id": "plane-data",
+      "label": "Layer 3: DuckDB & Cloud Persistence",
+      "elevation": 0
+    }
+  ],
+  "nodes": [
+    {
+      "id": "exec-scrubber",
+      "label": "Time Machine Scrubber",
+      "kind": "actor",
+      "planeId": "plane-experience",
+      "summary": "Interactive 60-month horizon slider branching roadmap realities.",
+      "metadata": {
+        "protocol": "REACT-19",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "branchMonth": 14,
+            "preset": "Competitor Moves First"
+          }
+        }
+      }
+    },
+    {
+      "id": "leave-brief",
+      "label": "Leave-the-Room Brief",
+      "kind": "document",
+      "planeId": "plane-experience",
+      "summary": "3-page printable executive verdict memo with P10/P50/P90 ARR.",
+      "metadata": {
+        "protocol": "PDF/MEMO",
+        "artifactPreview": {
+          "type": "markdown",
+          "content": "# Executive Verdict\nMedian 5Y NPV: $142.8M | Payback: Month 19 | VaR(P05): -$11.2M"
+        }
+      }
+    },
+    {
+      "id": "dag-solver",
+      "label": "Topological DAG Solver",
+      "kind": "agent",
+      "planeId": "plane-orchestration",
+      "summary": "Discrete quarterly capacity scheduler (250 pts/qtr) with shadow prices.",
+      "metadata": {
+        "protocol": "TS/PY",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "capacityPerQuarter": 250,
+            "shadowPricePerPt": "$48.2K"
+          }
+        }
+      }
+    },
+    {
+      "id": "monte-carlo",
+      "label": "Vectorized Monte Carlo",
+      "kind": "service",
+      "planeId": "plane-orchestration",
+      "summary": "25,000-path stochastic diffusion engine with Poisson preemption.",
+      "metadata": {
+        "protocol": "NUMPY",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "paths": 25000,
+            "wacc": 0.1,
+            "parityDeltaPct": 1.42
+          }
+        }
+      }
+    },
+    {
+      "id": "duckdb-store",
+      "label": "DuckDB SEC Baseline",
+      "kind": "database",
+      "planeId": "plane-data",
+      "summary": "Historical 2021-2024 financial baseline & TAM overlap matrices.",
+      "metadata": {
+        "protocol": "SQL",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "table": "sec_baselines",
+            "rows": 14200
+          }
+        }
+      }
+    },
+    {
+      "id": "firestore-sync",
+      "label": "Cloud Firestore Briefs",
+      "kind": "database",
+      "planeId": "plane-data",
+      "summary": "Immutable scenario brief snapshots for instant boardroom sharing.",
+      "metadata": {
+        "protocol": "NOSQL",
+        "artifactPreview": {
+          "type": "json",
+          "content": {
+            "collection": "/scenario_briefs",
+            "ttlDays": 365
+          }
+        }
+      }
+    }
+  ],
+  "edges": [
+    {
+      "id": "e-scrub-dag",
+      "source": "exec-scrubber",
+      "target": "dag-solver",
+      "label": "Branch Spec",
+      "protocol": "REST",
+      "motionPrimitive": "pulse",
+      "payloadSample": {
+        "overrideKilled": [
+          "feat-legacy"
+        ]
+      }
+    },
+    {
+      "id": "e-duck-dag",
+      "source": "duckdb-store",
+      "target": "dag-solver",
+      "label": "Baseline Constraints",
+      "protocol": "SQL",
+      "motionPrimitive": "flow"
+    },
+    {
+      "id": "e-dag-mc",
+      "source": "dag-solver",
+      "target": "monte-carlo",
+      "label": "Scheduled Quarters",
+      "protocol": "gRPC",
+      "motionPrimitive": "fork"
+    },
+    {
+      "id": "e-mc-brief",
+      "source": "monte-carlo",
+      "target": "leave-brief",
+      "label": "NPV Distribution",
+      "protocol": "Document-Link",
+      "motionPrimitive": "join"
+    },
+    {
+      "id": "e-mc-fire",
+      "source": "monte-carlo",
+      "target": "firestore-sync",
+      "label": "Persist Snapshot",
+      "protocol": "Webhook",
+      "motionPrimitive": "pulse"
+    }
+  ],
+  "scenes": [
+    {
+      "id": "scene-1",
+      "title": "Executive Branching & Capacity Scheduling",
+      "narrative": "An executive scrubs to Month 14 and branches the roadmap; the DAG solver immediately re-allocates quarterly engineering capacity.",
+      "activeNodes": [
+        "exec-scrubber",
+        "duckdb-store",
+        "dag-solver"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-scrub-dag",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-duck-dag",
+          "stepOrder": 2
+        }
+      ],
+      "camera": {
+        "viewMode": "2d-flow"
+      }
+    },
+    {
+      "id": "scene-2",
+      "title": "Stochastic Simulation & Executive Memo Generation",
+      "narrative": "The Monte Carlo engine evaluates 25,000 paths with Poisson competitor preemption and compiles the 3-page Leave-the-Room Brief.",
+      "activeNodes": [
+        "dag-solver",
+        "monte-carlo",
+        "leave-brief",
+        "firestore-sync"
+      ],
+      "activeEdges": [
+        {
+          "edgeId": "e-dag-mc",
+          "stepOrder": 1
+        },
+        {
+          "edgeId": "e-mc-brief",
+          "stepOrder": 2
+        },
+        {
+          "edgeId": "e-mc-fire",
+          "stepOrder": 3
+        }
+      ],
+      "camera": {
+        "viewMode": "2.5d-layered"
+      }
+    }
+  ]
+}</script>
+  <script id="computed-layout" type="application/json">{"width":1428,"height":680,"planes":[{"id":"plane-experience","label":"Layer 1: Executive Experience & Briefs","elevation":140,"y":56,"height":158},{"id":"plane-orchestration","label":"Layer 2: Stochastic Solver & DAG Engine","elevation":70,"y":238,"height":158},{"id":"plane-data","label":"Layer 3: DuckDB & Cloud Persistence","elevation":0,"y":420,"height":158}],"nodes":{"exec-scrubber":{"id":"exec-scrubber","x":72,"y":94,"width":228,"height":82,"column":0,"planeIndex":0,"elevation":140},"leave-brief":{"id":"leave-brief","x":1068,"y":94,"width":228,"height":82,"column":3,"planeIndex":0,"elevation":140},"dag-solver":{"id":"dag-solver","x":404,"y":276,"width":228,"height":82,"column":1,"planeIndex":1,"elevation":70},"monte-carlo":{"id":"monte-carlo","x":736,"y":276,"width":228,"height":82,"column":2,"planeIndex":1,"elevation":70},"duckdb-store":{"id":"duckdb-store","x":72,"y":458,"width":228,"height":82,"column":0,"planeIndex":2,"elevation":0},"firestore-sync":{"id":"firestore-sync","x":1068,"y":458,"width":228,"height":82,"column":3,"planeIndex":2,"elevation":0}},"edges":{"e-scrub-dag":{"id":"e-scrub-dag","source":"exec-scrubber","target":"dag-solver","pathD":"M 300 135 C 354.08 135, 349.92 317, 404 317","labelX":352,"labelY":216,"isVerticalConduit":true},"e-duck-dag":{"id":"e-duck-dag","source":"duckdb-store","target":"dag-solver","pathD":"M 300 499 C 354.08 499, 349.92 317, 404 317","labelX":352,"labelY":398,"isVerticalConduit":true},"e-dag-mc":{"id":"e-dag-mc","source":"dag-solver","target":"monte-carlo","pathD":"M 632 317 C 686.08 317, 681.92 317, 736 317","labelX":684,"labelY":307,"isVerticalConduit":false},"e-mc-brief":{"id":"e-mc-brief","source":"monte-carlo","target":"leave-brief","pathD":"M 964 317 C 1018.08 317, 1013.92 135, 1068 135","labelX":1016,"labelY":216,"isVerticalConduit":true},"e-mc-fire":{"id":"e-mc-fire","source":"monte-carlo","target":"firestore-sync","pathD":"M 964 317 C 1018.08 317, 1013.92 499, 1068 499","labelX":1016,"labelY":398,"isVerticalConduit":true}},"unresolvedNodes":[],"unresolvedEdges":[]}</script>
+  <script>(() => {
+// src/runtime/store.ts
+function createStore(spec, layout) {
+  const initialScene = spec.scenes?.[0];
+  const state = {
+    spec,
+    layout,
+    sceneIndex: 0,
+    viewMode: initialScene?.camera?.viewMode || spec.meta?.defaultView || "2d-flow",
+    selectedItem: null,
+    whiteboardMode: false,
+    playing: true,
+    panX: 30,
+    panY: 20,
+    zoom: 0.92,
+    sketchOps: []
+  };
+  const listeners = new Set;
+  return {
+    getState: () => state,
+    setState: (partial) => {
+      Object.assign(state, partial);
+      listeners.forEach((fn) => fn(state));
+    },
+    subscribe: (fn) => {
+      listeners.add(fn);
+      return () => listeners.delete(fn);
+    }
+  };
+}
+
+// src/runtime/dom-utils.ts
+function el(tag, attrs = {}, children = []) {
+  const element = document.createElement(tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v === undefined || v === null)
+      continue;
+    if (k === "className")
+      element.className = String(v);
+    else if (k === "style" && typeof v === "object")
+      Object.assign(element.style, v);
+    else if (k.startsWith("on") && typeof v === "function") {
+      element.addEventListener(k.slice(2).toLowerCase(), v);
+    } else
+      element.setAttribute(k, String(v));
+  }
+  for (const child of children) {
+    element.appendChild(typeof child === "string" ? document.createTextNode(child) : child);
+  }
+  return element;
+}
+function svgEl(tag, attrs = {}) {
+  const element = document.createElementNS("http://www.w3.org/2000/svg", tag);
+  for (const [k, v] of Object.entries(attrs)) {
+    if (v !== undefined && v !== null)
+      element.setAttribute(k, String(v));
+  }
+  return element;
+}
+function clearChildren(node) {
+  if (!node)
+    return;
+  while (node.firstChild)
+    node.removeChild(node.firstChild);
+}
+
+// src/runtime/renderer-grid.ts
+function renderPlanes(container, state) {
+  clearChildren(container);
+  const planes = state.layout?.planes || [];
+  const is25d = state.viewMode === "2.5d-layered";
+  for (const plane of planes) {
+    const zOffset = is25d ? (plane.elevation || 0) * 0.45 : 0;
+    const band = el("div", {
+      className: "plane-band",
+      "data-plane-id": plane.id,
+      style: {
+        top: `${plane.y}px`,
+        height: `${plane.height}px`,
+        transform: is25d ? `translateZ(${zOffset}px)` : "none"
+      }
+    }, [
+      el("div", { className: "plane-label" }, [
+        `${plane.label} ${is25d ? `· ELEV +${plane.elevation}` : ""}`
+      ])
+    ]);
+    container.appendChild(band);
+  }
+}
+function applyCameraTransform(worldEl, state) {
+  worldEl.style.width = `${state.layout.width}px`;
+  worldEl.style.height = `${state.layout.height}px`;
+  if (state.viewMode === "2.5d-layered") {
+    worldEl.classList.add("layered-25d");
+    worldEl.style.transform = `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom}) rotateX(24deg) rotateZ(-7deg)`;
+  } else {
+    worldEl.classList.remove("layered-25d");
+    worldEl.style.transform = `translate3d(${state.panX}px, ${state.panY}px, 0) scale(${state.zoom})`;
+  }
+}
+
+// src/runtime/renderer-nodes.ts
+var KIND_ICONS = {
+  actor: "\uD83D\uDC64",
+  platform: "\uD83C\uDFDB️",
+  service: "⚙️",
+  agent: "\uD83E\uDDE0",
+  database: "\uD83D\uDDC4️",
+  document: "\uD83D\uDCC4",
+  queue: "⇄"
+};
+function renderNodes(container, state, onSelectNode) {
+  clearChildren(container);
+  const scene = state.spec.scenes?.[state.sceneIndex];
+  const activeSet = new Set(scene?.activeNodes || []);
+  const is25d = state.viewMode === "2.5d-layered";
+  for (const node of state.spec.nodes || []) {
+    const pos = state.layout.nodes?.[node.id];
+    if (!pos)
+      continue;
+    const isActive = activeSet.size === 0 || activeSet.has(node.id);
+    const isSelected = state.selectedItem?.type === "node" && state.selectedItem?.id === node.id;
+    const zLift = is25d ? (pos.elevation || 0) * 0.45 + 8 : 0;
+    const card = el("div", {
+      className: `node-card ${isActive ? "active" : "dimmed"} ${isSelected ? "selected" : ""}`,
+      "data-node-id": node.id,
+      style: {
+        left: `${pos.x}px`,
+        top: `${pos.y}px`,
+        width: `${pos.width}px`,
+        height: `${pos.height}px`,
+        transform: is25d ? `translateZ(${zLift}px)` : "none"
+      },
+      onClick: (e) => {
+        e.stopPropagation();
+        onSelectNode(node.id);
+      }
+    }, [
+      el("div", { className: "node-top" }, [
+        el("span", { className: "node-kind-icon" }, [KIND_ICONS[node.kind] || "◈"]),
+        el("span", { className: "node-badge" }, [
+          node.metadata?.protocol || String(node.kind).toUpperCase()
+        ])
+      ]),
+      el("div", { className: "node-title" }, [node.label])
+    ]);
+    container.appendChild(card);
+  }
+}
+
+// src/runtime/renderer-edges.ts
+function renderEdges(svgRoot, state, onSelectEdge) {
+  clearChildren(svgRoot);
+  svgRoot.setAttribute("width", String(state.layout.width));
+  svgRoot.setAttribute("height", String(state.layout.height));
+  const scene = state.spec.scenes?.[state.sceneIndex];
+  const activeMap = new Map;
+  for (const ae of scene?.activeEdges || []) {
+    activeMap.set(ae.edgeId, ae);
+  }
+  for (const edge of state.spec.edges || []) {
+    const route = state.layout.edges?.[edge.id];
+    if (!route)
+      continue;
+    const activeSpec = activeMap.get(edge.id);
+    const isActive = Boolean(activeSpec);
+    const motion = activeSpec?.motionOverride || edge.motionPrimitive || "flow";
+    const g = svgEl("g", { "data-edge-id": edge.id });
+    const visiblePath = svgEl("path", {
+      id: `edge-path-${edge.id}`,
+      d: route.pathD,
+      class: `edge-path ${isActive ? `active-${motion}` : "dimmed"}`
+    });
+    const hitPath = svgEl("path", {
+      d: route.pathD,
+      class: "edge-hit"
+    });
+    hitPath.addEventListener("click", (e) => {
+      e.stopPropagation();
+      onSelectEdge(edge.id);
+    });
+    g.appendChild(visiblePath);
+    g.appendChild(hitPath);
+    if (edge.protocol || edge.label) {
+      const labelText = svgEl("text", {
+        x: route.labelX,
+        y: route.labelY,
+        "text-anchor": "middle",
+        fill: isActive ? "#141413" : "#9E9D99",
+        "font-family": "var(--font-mono)",
+        "font-size": "10"
+      });
+      labelText.textContent = edge.protocol ? `[${edge.protocol}] ${edge.label || ""}`.trim() : edge.label;
+      g.appendChild(labelText);
+    }
+    svgRoot.appendChild(g);
+  }
+  const packetLayer = svgEl("g", { id: "packet-layer" });
+  svgRoot.appendChild(packetLayer);
+}
+
+// src/runtime/renderer-packets.ts
+var MOTION_COLORS = {
+  flow: "#1D4ED8",
+  pulse: "#EA580C",
+  fork: "#15803D",
+  join: "#6D28D9",
+  error: "#B91C1C"
+};
+var rafId = 0;
+function startPacketAnimator(svgRoot, getState) {
+  if (rafId)
+    cancelAnimationFrame(rafId);
+  const tick = (now) => {
+    const state = getState();
+    const packetLayer = svgRoot.querySelector("#packet-layer");
+    if (packetLayer && state.playing) {
+      clearChildren(packetLayer);
+      const scene = state.spec.scenes?.[state.sceneIndex];
+      const activeEdges = scene?.activeEdges || [];
+      for (const ae of activeEdges) {
+        const edge = state.spec.edges?.find((e) => e.id === ae.edgeId);
+        const pathEl = svgRoot.querySelector(`#edge-path-${ae.edgeId}`);
+        if (!edge || !pathEl || typeof pathEl.getTotalLength !== "function")
+          continue;
+        const len = pathEl.getTotalLength();
+        if (len <= 0)
+          continue;
+        const motion = ae.motionOverride || edge.motionPrimitive || "flow";
+        const color = MOTION_COLORS[motion] || "#1D4ED8";
+        const speed = motion === "pulse" ? 1400 : 2100;
+        const rawT = (now + (ae.stepOrder || 0) * 320) % speed / speed;
+        const t = motion === "error" ? Math.min(0.5, rawT) : rawT;
+        const pt = pathEl.getPointAtLength(t * len);
+        const dot = svgEl("circle", {
+          cx: pt.x,
+          cy: pt.y,
+          r: motion === "pulse" ? 5.5 : 4.2,
+          fill: color,
+          stroke: "#FFFFFF",
+          "stroke-width": "1.5"
+        });
+        packetLayer.appendChild(dot);
+      }
+    }
+    rafId = requestAnimationFrame(tick);
+  };
+  rafId = requestAnimationFrame(tick);
+}
+
+// src/runtime/ui-narrative.ts
+function renderNarrativeHud(hudEl, state, onSelectScene, onTogglePlay) {
+  clearChildren(hudEl);
+  const scenes = state.spec.scenes || [];
+  const current = scenes[state.sceneIndex] || {
+    title: "System Overview",
+    narrative: "No narrative scene defined."
+  };
+  const leftBox = el("div", { className: "narrative-box" }, [
+    el("div", { className: "scene-kicker" }, [
+      `SCENE 0${state.sceneIndex + 1} / 0${scenes.length} · ${current.title}`
+    ]),
+    el("div", { className: "scene-narrative" }, [current.narrative])
+  ]);
+  const controls = el("div", { className: "toolbar-group" }, [
+    el("button", {
+      className: "btn",
+      onClick: () => onSelectScene((state.sceneIndex - 1 + scenes.length) % scenes.length)
+    }, ["← Prev"]),
+    el("button", {
+      className: `btn ${state.playing ? "active" : ""}`,
+      onClick: onTogglePlay
+    }, [state.playing ? "⏸ Pause" : "▶ Play"]),
+    el("button", {
+      className: "btn btn-accent",
+      onClick: () => onSelectScene((state.sceneIndex + 1) % scenes.length)
+    }, ["Next Scene →"])
+  ]);
+  hudEl.appendChild(leftBox);
+  hudEl.appendChild(controls);
+}
+
+// src/runtime/ui-inspector.ts
+function renderInspector(inspectorEl, state, onClose) {
+  clearChildren(inspectorEl);
+  const sel = state.selectedItem;
+  if (!sel) {
+    inspectorEl.classList.remove("open");
+    return;
+  }
+  inspectorEl.classList.add("open");
+  const closeBtn = el("button", { className: "btn", style: { float: "right" }, onClick: onClose }, ["✕ Close"]);
+  inspectorEl.appendChild(closeBtn);
+  if (sel.type === "node") {
+    const node = state.spec.nodes?.find((n) => n.id === sel.id);
+    if (!node)
+      return;
+    const preview = node.metadata?.artifactPreview;
+    const formattedPreview = preview ? typeof preview.content === "string" ? preview.content : JSON.stringify(preview.content, null, 2) : "no data";
+    inspectorEl.appendChild(el("div", {}, [
+      el("div", { className: "scene-kicker" }, [`${node.kind.toUpperCase()} · ${node.planeId}`]),
+      el("h3", { style: { marginTop: "6px", fontSize: "16px" } }, [node.label]),
+      el("p", { style: { marginTop: "8px", fontSize: "13px", color: "var(--ink-secondary)" } }, [
+        node.summary
+      ]),
+      el("div", { className: "scene-kicker", style: { marginTop: "16px" } }, [
+        `ARTIFACT / PAYLOAD PREVIEW (${preview?.type || "NONE"})`
+      ]),
+      el("pre", { className: "inspector-pre" }, [formattedPreview])
+    ]));
+  } else {
+    const edge = state.spec.edges?.find((e) => e.id === sel.id);
+    if (!edge)
+      return;
+    const sample = edge.payloadSample ? JSON.stringify(edge.payloadSample, null, 2) : "no data";
+    inspectorEl.appendChild(el("div", {}, [
+      el("div", { className: "scene-kicker" }, [
+        `EDGE · ${edge.protocol || "FLOW"} · ${edge.motionPrimitive.toUpperCase()}`
+      ]),
+      el("h3", { style: { marginTop: "6px", fontSize: "15px" } }, [
+        `${edge.source} → ${edge.target}`
+      ]),
+      el("pre", { className: "inspector-pre" }, [sample])
+    ]));
+  }
+}
+
+// src/runtime/whiteboard.ts
+function attachWhiteboard(svgOverlay, getState, onNewOperation) {
+  let drawing = false;
+  let points = [];
+  let activePath = null;
+  const toWorldPoint = (e) => {
+    const rect = svgOverlay.getBoundingClientRect();
+    const s = getState();
+    return {
+      x: (e.clientX - rect.left) / (s.zoom || 1),
+      y: (e.clientY - rect.top) / (s.zoom || 1)
+    };
+  };
+  const hitTestNode = (pt, state) => {
+    for (const [id, box] of Object.entries(state.layout.nodes || {})) {
+      if (pt.x >= box.x && pt.x <= box.x + box.width && pt.y >= box.y && pt.y <= box.y + box.height) {
+        return id;
+      }
+    }
+    return null;
+  };
+  svgOverlay.addEventListener("pointerdown", (e) => {
+    const state = getState();
+    if (!state.whiteboardMode)
+      return;
+    drawing = true;
+    points = [toWorldPoint(e)];
+    activePath = svgEl("path", {
+      fill: "none",
+      stroke: "#EA580C",
+      "stroke-width": "2.5",
+      "stroke-linecap": "round",
+      d: `M ${points[0].x} ${points[0].y}`
+    });
+    svgOverlay.appendChild(activePath);
+  });
+  window.addEventListener("pointermove", (e) => {
+    if (!drawing || !activePath)
+      return;
+    const pt = toWorldPoint(e);
+    points.push(pt);
+    activePath.setAttribute("d", points.map((p, i) => `${i === 0 ? "M" : "L"} ${p.x} ${p.y}`).join(" "));
+  });
+  window.addEventListener("pointerup", () => {
+    if (!drawing || points.length < 2) {
+      drawing = false;
+      return;
+    }
+    drawing = false;
+    const state = getState();
+    const startNode = hitTestNode(points[0], state);
+    const endNode = hitTestNode(points[points.length - 1], state);
+    if (startNode && endNode && startNode !== endNode) {
+      onNewOperation({ action: "ADD_EDGE", from: startNode, to: endNode, protocol: "Event" });
+    } else {
+      const endPt = points[points.length - 1];
+      const plane = state.layout.planes?.find((p) => endPt.y >= p.y && endPt.y <= p.y + p.height) || state.layout.planes?.[0];
+      onNewOperation({
+        action: "ADD_NODE",
+        label: `Sketch Node ${state.sketchOps.length + 1}`,
+        planeId: plane?.id || "plane-orchestration"
+      });
+    }
+  });
+}
+
+// src/runtime/app.ts
+function bootLivingArchitectureCanvas() {
+  const specEl = document.getElementById("architecture-spec");
+  const layoutEl = document.getElementById("computed-layout");
+  if (!specEl || !layoutEl)
+    return;
+  const spec = JSON.parse(specEl.textContent || "{}");
+  const layout = JSON.parse(layoutEl.textContent || "{}");
+  const store = createStore(spec, layout);
+  const worldEl = document.getElementById("world");
+  const planesEl = document.getElementById("planes-layer");
+  const nodesEl = document.getElementById("nodes-layer");
+  const edgesSvg = document.getElementById("edges-svg");
+  const wbSvg = document.getElementById("whiteboard-svg");
+  const hudEl = document.getElementById("hud-bar");
+  const inspectorEl = document.getElementById("inspector");
+  const viewportEl = document.getElementById("viewport");
+  const syncUI = () => {
+    const s = store.getState();
+    wbSvg.setAttribute("width", String(s.layout.width));
+    wbSvg.setAttribute("height", String(s.layout.height));
+    wbSvg.classList.toggle("active", s.whiteboardMode);
+    viewportEl.classList.toggle("whiteboard-active", s.whiteboardMode);
+    applyCameraTransform(worldEl, s);
+    renderPlanes(planesEl, s);
+    renderEdges(edgesSvg, s, (edgeId) => store.setState({ selectedItem: { type: "edge", id: edgeId } }));
+    renderNodes(nodesEl, s, (nodeId) => store.setState({ selectedItem: { type: "node", id: nodeId } }));
+    renderNarrativeHud(hudEl, s, (sceneIndex) => {
+      const nextScene = s.spec.scenes?.[sceneIndex];
+      store.setState({
+        sceneIndex,
+        viewMode: nextScene?.camera?.viewMode || s.viewMode
+      });
+    }, () => store.setState({ playing: !s.playing }));
+    renderInspector(inspectorEl, s, () => store.setState({ selectedItem: null }));
+    const btn25d = document.getElementById("btn-toggle-25d");
+    if (btn25d)
+      btn25d.classList.toggle("active", s.viewMode === "2.5d-layered");
+    const btnWb = document.getElementById("btn-toggle-wb");
+    if (btnWb)
+      btnWb.classList.toggle("active", s.whiteboardMode);
+    const btnDiff = document.getElementById("btn-export-diff");
+    if (btnDiff)
+      btnDiff.textContent = `Copy Diff (${s.sketchOps.length})`;
+  };
+  store.subscribe(syncUI);
+  attachWhiteboard(wbSvg, store.getState, (op) => {
+    const s = store.getState();
+    store.setState({ sketchOps: [...s.sketchOps, op] });
+  });
+  document.getElementById("btn-toggle-25d")?.addEventListener("click", () => {
+    const s = store.getState();
+    store.setState({ viewMode: s.viewMode === "2d-flow" ? "2.5d-layered" : "2d-flow" });
+  });
+  document.getElementById("btn-toggle-wb")?.addEventListener("click", () => {
+    const s = store.getState();
+    store.setState({ whiteboardMode: !s.whiteboardMode });
+  });
+  document.getElementById("btn-export-diff")?.addEventListener("click", () => {
+    const s = store.getState();
+    const payload = JSON.stringify({ timestamp: new Date().toISOString(), operations: s.sketchOps }, null, 2);
+    navigator.clipboard?.writeText(payload);
+    store.setState({ selectedItem: null });
+    inspectorEl.classList.add("open");
+    inspectorEl.innerHTML = `<div class="scene-kicker">WHITEBOARD DIFF EXPORT</div><pre class="inspector-pre">${payload}</pre>`;
+  });
+  syncUI();
+  startPacketAnimator(edgesSvg, store.getState);
+}
+
+if (typeof bootLivingArchitectureCanvas === 'function') bootLivingArchitectureCanvas();
+})();</script>
+</body>
+</html>
